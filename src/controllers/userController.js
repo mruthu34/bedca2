@@ -178,6 +178,7 @@ module.exports.login = (req, res, next) => {
 module.exports.checkUsernameOrEmailExist = (req, res, next) => {
     try {
         const requiredFields = ['username', 'email'];
+        const allowedEmailDomains = ['gmail.com', 'hotmail.com', 'outlook.com'];
 
         for (const field of requiredFields) {
             if (req.body[field] === undefined || req.body[field] === "") {
@@ -185,9 +186,21 @@ module.exports.checkUsernameOrEmailExist = (req, res, next) => {
                 return;
             }
         };
+
+        const email = String(req.body.email).trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            res.status(400).json({ message: "email is invalid" });
+            return;
+        }
+        const domain = email.toLowerCase().split('@')[1];
+        if (!allowedEmailDomains.includes(domain)) {
+            res.status(400).json({ message: `Email must be from: ${allowedEmailDomains.join(', ')}` });
+            return;
+        }
     
         const data = {
-            email: req.body.email,
+            email,
             username: req.body.username
         };
 
