@@ -14,7 +14,7 @@ mountNavbar('');
 const form = qs('#loginForm');
 const btn = qs('#btnLogin');
 
-form?.addEventListener('submit', async (e) => {
+form?.addEventListener('submit', (e) => {
   e.preventDefault();
   const username = qs('#username')?.value?.trim();
   const password = qs('#password')?.value;
@@ -24,14 +24,16 @@ form?.addEventListener('submit', async (e) => {
     return;
   }
 
-  try {
-    setLoading(btn, true, 'Signing in...');
-    await login(username, password);
-    toast('Welcome back!', { kind: 'success', title: 'Logged in' });
-    window.location.href = ROUTES.dashboard;
-  } catch (err) {
-    toast(err?.message || 'Login failed.', { kind: 'danger', title: 'Error' });
-  } finally {
-    setLoading(btn, false);
-  }
+  setLoading(btn, true, 'Signing in...');
+  login(username, password)
+    .then(() => {
+      toast('Welcome back!', { kind: 'success', title: 'Logged in' });
+      window.location.href = ROUTES.dashboard;
+    })
+    .catch((err) => {
+      toast(err?.message || 'Login failed.', { kind: 'danger', title: 'Error' });
+    })
+    .finally(() => {
+      setLoading(btn, false);
+    });
 });

@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Challenges • WellQuest</title>
+  <title>Challenges - Boss Breaker</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="/assets/css/styles.css" rel="stylesheet">
 </head>
 <body>
@@ -17,8 +18,32 @@
         <div class="text-muted">Create, complete, and manage challenges. <span class="wq-chip" id="pointsChip">...</span></div>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-outline-light" id="btnRefresh">Refresh</button>
-        <button class="btn btn-primary" id="btnOpenCreate">+ New Challenge</button>
+        <button class="btn btn-outline-light" id="btnRefresh"><i class="bi bi-arrow-clockwise"></i>Refresh</button>
+        <button class="btn btn-primary" id="btnOpenCreate"><i class="bi bi-plus-circle"></i>New Challenge</button>
+      </div>
+    </section>
+
+    <section class="row g-2 mb-3">
+      <div class="col-12 col-lg-5">
+        <label class="form-label small text-muted">Search</label>
+        <input class="form-control" id="challengeSearch" placeholder="Search by description or ID">
+      </div>
+      <div class="col-6 col-lg-3">
+        <label class="form-label small text-muted">Filter</label>
+        <select class="form-select" id="challengeFilter">
+          <option value="all">All challenges</option>
+          <option value="mine">Mine only</option>
+          <option value="others">Others</option>
+        </select>
+      </div>
+      <div class="col-6 col-lg-4">
+        <label class="form-label small text-muted">Sort</label>
+        <select class="form-select" id="challengeSort">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="points_desc">Highest points</option>
+          <option value="points_asc">Lowest points</option>
+        </select>
       </div>
     </section>
 

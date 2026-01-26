@@ -32,12 +32,12 @@ module.exports.selectBossLeaderboard = (callback) => {
     return callback(null, results);
   });
 };
-module.exports.insertDamageLog = (boss_id, user_id, completion_id, damage, callback) => {
+module.exports.insertDamageLog = (boss_id, user_id, completion_id, damage, points_spent, callback) => {
   const SQL = `
-    INSERT INTO BossDamageLog (boss_id, user_id, completion_id, damage)
-    VALUES (?, ?, ?, ?);
+    INSERT INTO BossDamageLog (boss_id, user_id, completion_id, damage, points_spent)
+    VALUES (?, ?, ?, ?, ?);
   `;
-  pool.query(SQL, [boss_id, user_id, completion_id, damage], callback);
+  pool.query(SQL, [boss_id, user_id, completion_id, damage, points_spent], callback);
 };
 
 

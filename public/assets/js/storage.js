@@ -1,4 +1,6 @@
 const TOKEN_KEY = 'wq_token';
+const EFFECT_KEY = 'wq_active_effect';
+const ACTIVITY_KEY = 'wq_activity';
 
 export function setToken(token){
   localStorage.setItem(TOKEN_KEY, token);
@@ -14,4 +16,49 @@ export function clearToken(){
 
 export function isAuthed(){
   return Boolean(getToken());
+}
+
+export function setActiveEffect(effect){
+  if (!effect) return;
+  const payload = {
+    bonus_damage: Number(effect.bonus_damage) || 0,
+    multiplier: Number(effect.multiplier) || 1,
+    name: effect.name || effect.item_name || 'Item effect',
+    ts: Date.now()
+  };
+  localStorage.setItem(EFFECT_KEY, JSON.stringify(payload));
+}
+
+export function getActiveEffect(){
+  const raw = localStorage.getItem(EFFECT_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+export function clearActiveEffect(){
+  localStorage.removeItem(EFFECT_KEY);
+}
+
+export function addActivity(entry){
+  const list = getActivity();
+  const payload = {
+    title: entry?.title || 'Activity',
+    detail: entry?.detail || '',
+    icon: entry?.icon || 'sparkles',
+    ts: Date.now()
+  };
+  list.unshift(payload);
+  const trimmed = list.slice(0, 6);
+  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(trimmed));
+  return trimmed;
+}
+
+export function getActivity(){
+  const raw = localStorage.getItem(ACTIVITY_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw) || []; } catch { return []; }
+}
+
+export function clearActivity(){
+  localStorage.removeItem(ACTIVITY_KEY);
 }

@@ -3,14 +3,15 @@ import { getToken, clearToken } from './storage.js';
 import { setFlash } from './auth.js';
 import { ROUTES } from './config.js';
 
-async function parseJsonSafe(res) {
-  const text = await res.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
+function parseJsonSafe(res) {
+  return res.text().then((text) => {
+    if (!text) return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { raw: text };
+    }
+  });
 }
 
 function buildError(status, data) {
@@ -29,7 +30,7 @@ function handleAuthFailure(data){
   if (!onAuthPage) window.location.href = ROUTES.login;
 }
 
-export async function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
+export function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { Accept: 'application/json' };
   let payload;
 
@@ -43,22 +44,21 @@ export async function apiRequest(path, { method = 'GET', body, auth = false } = 
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  return fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: payload
-  });
-
-  const data = await parseJsonSafe(res);
-
-  if (!res.ok) {
-    if (auth && res.status === 401) {
-      handleAuthFailure(data);
-    }
-    throw buildError(res.status, data);
-  }
-
-  return data;
+  }).then((res) =>
+    parseJsonSafe(res).then((data) => {
+      if (!res.ok) {
+        if (auth && res.status === 401) {
+          handleAuthFailure(data);
+        }
+        throw buildError(res.status, data);
+      }
+      return data;
+    })
+  );
 }
 
 export const api = {

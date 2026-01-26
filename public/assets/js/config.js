@@ -10,5 +10,6 @@ export const ROUTES = {
   challenges: '/challenges.html',
   boss: '/boss.html',
   shop: '/shop.html',
-  inventory: '/inventory.html'
+  inventory: '/inventory.html',
+  profile: '/profile.html'
 };

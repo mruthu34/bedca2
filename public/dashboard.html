@@ -3,34 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard • WellQuest</title>
+  <title>Dashboard - Boss Breaker</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="/assets/css/styles.css" rel="stylesheet">
 </head>
 <body>
   <div id="appNavbar"></div>
 
   <main class="container py-4">
-    <div class="wq-hero wq-glass">
+    <div class="wq-hero card-glass">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
           <h1 class="h3 mb-1">Dashboard</h1>
           <div class="text-muted">Your quick view: points, boss status, and inventory.</div>
         </div>
-        <div class="wq-glass p-3">
+        <div class="card-plain p-3">
           <div class="text-muted small">My points</div>
-          <div class="display-6 fw-bold" id="myPoints">—</div>
+          <div class="display-6 fw-bold" id="myPoints">--</div>
         </div>
       </div>
 
       <div class="row g-3 mt-2">
         <div class="col-12 col-lg-6">
-          <div class="wq-glass p-3 h-100" id="bossSummary">
+          <div class="card-plain p-3 h-100" id="bossSummary">
             <div class="text-muted">Loading boss...</div>
           </div>
         </div>
         <div class="col-12 col-lg-6">
-          <div class="wq-glass p-3 h-100" id="invSummary">
+          <div class="card-plain p-3 h-100" id="invSummary">
             <div class="text-muted">Loading inventory...</div>
           </div>
         </div>
@@ -38,25 +39,52 @@
 
       <div class="row g-3 mt-2">
         <div class="col-12 col-lg-4">
-          <a class="wq-glass p-3 d-block" href="/challenges.html">
-            <div class="fw-semibold">Manage Challenges</div>
+          <a class="card-plain p-3 d-block" href="/challenges.html">
+            <div class="fw-semibold"><i class="bi bi-flag"></i>Manage Challenges</div>
             <div class="text-muted small">Create, edit, complete, view attempts.</div>
           </a>
         </div>
         <div class="col-12 col-lg-4">
-          <a class="wq-glass p-3 d-block" href="/shop.html">
-            <div class="fw-semibold">Spend Points</div>
+          <a class="card-plain p-3 d-block" href="/shop.html">
+            <div class="fw-semibold"><i class="bi bi-bag-heart"></i>Spend Points</div>
             <div class="text-muted small">Buy boosters to increase raid damage.</div>
           </a>
         </div>
         <div class="col-12 col-lg-4">
-          <a class="wq-glass p-3 d-block" href="/boss.html">
-            <div class="fw-semibold">Boss Raid</div>
+          <a class="card-plain p-3 d-block" href="/boss.html">
+            <div class="fw-semibold"><i class="bi bi-crosshair"></i>Boss Raid</div>
             <div class="text-muted small">Compete on the leaderboard with your damage.</div>
           </a>
         </div>
       </div>
     </div>
+
+    <section class="row g-3 mt-3">
+      <div class="col-12 col-lg-4">
+        <div class="card-plain p-3 h-100">
+          <div class="wq-section-title mb-2"><i class="bi bi-activity"></i>Recent Activity</div>
+          <div id="recentActivity" class="wq-activity">
+            <div class="text-muted small">No activity yet. Complete a challenge or hit the boss.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="card-accent p-3 h-100">
+          <div class="wq-section-title mb-2"><i class="bi bi-lightning-charge"></i>Active Effect</div>
+          <div id="activeEffectSummary" class="text-muted small">No active item effect detected.</div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="card-plain p-3 h-100">
+          <div class="wq-section-title mb-2"><i class="bi bi-rocket-takeoff"></i>Quick Actions</div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-outline-light btn-sm" href="/challenges.html"><i class="bi bi-plus-circle"></i>New Challenge</a>
+            <a class="btn btn-outline-light btn-sm" href="/inventory.html"><i class="bi bi-backpack"></i>Use Inventory Item</a>
+            <a class="btn btn-outline-light btn-sm" href="/boss.html"><i class="bi bi-crosshair"></i>Attack Boss</a>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>

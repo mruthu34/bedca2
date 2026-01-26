@@ -15,7 +15,7 @@ mountNavbar('');
 const form = qs('#registerForm');
 const btn = qs('#btnRegister');
 
-form?.addEventListener('submit', async (e) => {
+form?.addEventListener('submit', (e) => {
   e.preventDefault();
   const username = qs('#username')?.value?.trim();
   const email = qs('#email')?.value?.trim();
@@ -41,14 +41,16 @@ form?.addEventListener('submit', async (e) => {
     return;
   }
 
-  try {
-    setLoading(btn, true, 'Creating account...');
-    await register({ username, email, password });
-    toast('Account created!', { kind: 'success', title: 'Welcome' });
-    window.location.href = ROUTES.dashboard;
-  } catch (err) {
-    toast(err?.message || 'Registration failed.', { kind: 'danger', title: 'Error' });
-  } finally {
-    setLoading(btn, false);
-  }
+  setLoading(btn, true, 'Creating account...');
+  register({ username, email, password })
+    .then(() => {
+      toast('Account created!', { kind: 'success', title: 'Welcome' });
+      window.location.href = ROUTES.dashboard;
+    })
+    .catch((err) => {
+      toast(err?.message || 'Registration failed.', { kind: 'danger', title: 'Error' });
+    })
+    .finally(() => {
+      setLoading(btn, false);
+    });
 });

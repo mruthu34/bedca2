@@ -9,6 +9,16 @@ const getMyPointsChain = [
   userController.getMyPoints
 ];
 
+const getMyProfileChain = [
+  jwtMiddleware.verifyToken,
+  userController.getMyProfile
+];
+
+const deleteMeChain = [
+  jwtMiddleware.verifyToken,
+  userController.deleteMe
+];
+
 const deletePlayerChain = [
   jwtMiddleware.verifyToken,
   userController.deletePlayer
@@ -28,6 +38,8 @@ const updatePlayerChain = [
 router.post('/', userController.createNewUser);
 router.get('/', userController.readAllUser);
 router.get("/me/points", getMyPointsChain);
+router.get("/me/profile", getMyProfileChain);
+router.delete("/me", deleteMeChain);
 router.get("/:user_id", userController.readUserById);
 router.put('/:user_id', userController.updateUserById);
 

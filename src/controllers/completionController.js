@@ -189,7 +189,7 @@ const loadActiveBossForCompletion = (req, res, next) => {
 const logBossDamage = (req, res, next) => {
   const { data, boss, completionId, damage } = res.locals.completion;
 
-  bossModel.insertDamageLog(boss.boss_id, data.user_id, completionId, damage, (errL) => {
+  bossModel.insertDamageLog(boss.boss_id, data.user_id, completionId, damage, 0, (errL) => {
     if (errL) {
       console.error("Error logging boss damage:", errL);
       return next(errL);
@@ -374,9 +374,9 @@ const loadActiveBossForHitBoss = (req, res, next) => {
 };
 
 const logHitBossDamage = (req, res, next) => {
-  const { boss, userId, damage } = res.locals.hitBoss;
+  const { boss, userId, damage, pointsSpent } = res.locals.hitBoss;
 
-  bossModel.insertDamageLog(boss.boss_id, userId, null, damage, (errL) => {
+  bossModel.insertDamageLog(boss.boss_id, userId, null, damage, pointsSpent, (errL) => {
     if (errL) {
       console.error("Error logging boss damage:", errL);
       return next(errL);

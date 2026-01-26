@@ -16,7 +16,7 @@ export function formatNumber(n){
   return num.toLocaleString();
 }
 
-export function toast(message, { title='WellQuest', kind='info', delay=3500 }={}){
+export function toast(message, { title='Boss Breaker', kind='info', delay=3500 }={}){
   const container = document.getElementById('toastContainer');
   if (!container) return alert(`${title}: ${message}`);
 

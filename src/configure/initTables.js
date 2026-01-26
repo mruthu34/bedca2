@@ -70,6 +70,34 @@ const createUserEffectTable = `
       ON DELETE CASCADE ON UPDATE CASCADE
   );
 `;
+
+const createBossTable = `
+  CREATE TABLE IF NOT EXISTS Boss (
+    boss_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    max_hp INT NOT NULL,
+    current_hp INT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1
+  );
+`;
+
+const createBossDamageLogTable = `
+  CREATE TABLE IF NOT EXISTS BossDamageLog (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    boss_id INT NOT NULL,
+    user_id INT NOT NULL,
+    completion_id INT NULL,
+    damage INT NOT NULL,
+    points_spent INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (boss_id) REFERENCES Boss(boss_id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES User(user_id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (completion_id) REFERENCES UserCompletion(completion_id)
+      ON DELETE SET NULL ON UPDATE CASCADE
+  );
+`;
 pool.query(createUserTable, (err) => {
   if (err) console.log("User table error:", err);
   else console.log("User table ready");
@@ -98,4 +126,14 @@ pool.query(createInventoryTable, (err) => {
 pool.query(createUserEffectTable, (err) => {
   if (err) console.log("UserEffect table error:", err);
   else console.log("UserEffect table ready");
+});
+
+pool.query(createBossTable, (err) => {
+  if (err) console.log("Boss table error:", err);
+  else console.log("Boss table ready");
+});
+
+pool.query(createBossDamageLogTable, (err) => {
+  if (err) console.log("BossDamageLog table error:", err);
+  else console.log("BossDamageLog table ready");
 });

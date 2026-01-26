@@ -59,6 +59,32 @@ module.exports.deductPointsIfEnough = (data, callback) => {
   const VALUES = [data.points, data.user_id, data.points];
   pool.query(SQLSTATEMENT, VALUES, callback);
 };
+
+module.exports.selectProfileStats = (data, callback) => {
+  const SQLSTATEMENT = `
+    SELECT
+      u.user_id,
+      u.username,
+      u.points,
+      COALESCE(SUM(bdl.damage), 0) AS total_damage,
+      COALESCE(SUM(bdl.points_spent), 0) AS total_points_spent
+    FROM User u
+    LEFT JOIN BossDamageLog bdl ON bdl.user_id = u.user_id
+    WHERE u.user_id = ?
+    GROUP BY u.user_id, u.username, u.points;
+  `;
+  const VALUES = [data.user_id];
+  pool.query(SQLSTATEMENT, VALUES, callback);
+};
+
+module.exports.deleteById = (data, callback) => {
+  const SQLSTATEMENT = `
+    DELETE FROM User
+    WHERE user_id = ?;
+  `;
+  const VALUES = [data.user_id];
+  pool.query(SQLSTATEMENT, VALUES, callback);
+};
 //////////////////////////////////////////////////////
 // MODEL FOR LOGIN
 //////////////////////////////////////////////////////

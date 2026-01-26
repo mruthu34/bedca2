@@ -1,5 +1,5 @@
 import { ROUTES } from './config.js';
-import { clearToken, getToken, setToken } from './storage.js';
+import { clearToken, getToken, setToken, clearActiveEffect, clearActivity } from './storage.js';
 import { api } from './api.js';
 
 const FLASH_KEY = 'wq_flash';
@@ -58,17 +58,21 @@ export function requireAuth(){
 
 export function logout(){
   clearToken();
+  clearActiveEffect();
+  clearActivity();
   window.location.href = ROUTES.home;
 }
 
-export async function login(username, password){
-  const data = await api.post('/login', { username, password });
-  if (data?.token) setToken(data.token);
-  return data;
+export function login(username, password){
+  return api.post('/login', { username, password }).then((data) => {
+    if (data?.token) setToken(data.token);
+    return data;
+  });
 }
 
-export async function register({ username, email, password }){
-  const data = await api.post('/register', { username, email, password });
-  if (data?.token) setToken(data.token);
-  return data;
+export function register({ username, email, password }){
+  return api.post('/register', { username, email, password }).then((data) => {
+    if (data?.token) setToken(data.token);
+    return data;
+  });
 }

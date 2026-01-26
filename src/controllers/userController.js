@@ -98,6 +98,49 @@ module.exports.getMyPoints = (req, res) => {
     });
 };
 
+module.exports.getMyProfile = (req, res) => {
+    const userId = req.user && req.user.user_id;
+    if (userId == undefined) {
+        return res.status(401).json({ message: "Error: missing user token" });
+    }
+
+    usermodel.selectProfileStats({ user_id: userId }, (error, results) => {
+        if (error) {
+            console.error("Error getMyProfile:", error);
+            return res.status(500).json(error);
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const row = results[0];
+        return res.status(200).json({
+            user_id: row.user_id,
+            username: row.username,
+            points: row.points,
+            total_damage: row.total_damage,
+            total_points_spent: row.total_points_spent
+        });
+    });
+};
+
+module.exports.deleteMe = (req, res) => {
+    const userId = req.user && req.user.user_id;
+    if (userId == undefined) {
+        return res.status(401).json({ message: "Error: missing user token" });
+    }
+
+    usermodel.deleteById({ user_id: userId }, (error, results) => {
+        if (error) {
+            console.error("Error deleteMe:", error);
+            return res.status(500).json(error);
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.status(204).send();
+    });
+};
+
 
 
 module.exports.createNewUser = (req, res, next) =>
