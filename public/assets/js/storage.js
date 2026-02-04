@@ -18,25 +18,28 @@ export function isAuthed(){
   return Boolean(getToken());
 }
 
-export function setActiveEffect(effect){
+export function setActiveEffect(effect, userId){
   if (!effect) return;
+  const key = userId ? `${EFFECT_KEY}_${userId}` : EFFECT_KEY;
   const payload = {
     bonus_damage: Number(effect.bonus_damage) || 0,
     multiplier: Number(effect.multiplier) || 1,
     name: effect.name || effect.item_name || 'Item effect',
     ts: Date.now()
   };
-  localStorage.setItem(EFFECT_KEY, JSON.stringify(payload));
+  localStorage.setItem(key, JSON.stringify(payload));
 }
 
-export function getActiveEffect(){
-  const raw = localStorage.getItem(EFFECT_KEY);
+export function getActiveEffect(userId){
+  const key = userId ? `${EFFECT_KEY}_${userId}` : EFFECT_KEY;
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-export function clearActiveEffect(){
-  localStorage.removeItem(EFFECT_KEY);
+export function clearActiveEffect(userId){
+  const key = userId ? `${EFFECT_KEY}_${userId}` : EFFECT_KEY;
+  localStorage.removeItem(key);
 }
 
 export function addActivity(entry){

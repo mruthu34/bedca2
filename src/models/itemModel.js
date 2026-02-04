@@ -1,8 +1,10 @@
 const pool = require("../services/db");
 
+const BONUS_RATIO = 1.5;
+
 module.exports.selectAll = (callback) => {
   const SQLSTATEMENT = `
-    SELECT item_id, name, cost_points, bonus_damage, multiplier, description
+    SELECT item_id, name, cost_points, ROUND(cost_points * ${BONUS_RATIO}) AS bonus_damage, multiplier, description
     FROM Item
     ORDER BY item_id ASC;
   `;
@@ -11,7 +13,7 @@ module.exports.selectAll = (callback) => {
 
 module.exports.selectById = (data, callback) => {
   const SQLSTATEMENT = `
-    SELECT item_id, name, cost_points, bonus_damage, multiplier, description
+    SELECT item_id, name, cost_points, ROUND(cost_points * ${BONUS_RATIO}) AS bonus_damage, multiplier, description
     FROM Item
     WHERE item_id = ?;
   `;
@@ -21,7 +23,7 @@ module.exports.selectById = (data, callback) => {
 
 module.exports.selectByName = (data, callback) => {
   const SQLSTATEMENT = `
-    SELECT item_id, name, cost_points, bonus_damage, multiplier, description
+    SELECT item_id, name, cost_points, ROUND(cost_points * ${BONUS_RATIO}) AS bonus_damage, multiplier, description
     FROM Item
     WHERE name = ?;
   `;

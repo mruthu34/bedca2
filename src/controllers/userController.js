@@ -117,6 +117,7 @@ module.exports.getMyProfile = (req, res) => {
             user_id: row.user_id,
             username: row.username,
             points: row.points,
+            inventory_capacity: row.inventory_capacity,
             total_damage: row.total_damage,
             total_points_spent: row.total_points_spent
         });

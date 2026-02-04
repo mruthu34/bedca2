@@ -15,6 +15,10 @@ const createChallengeChain = [
   attachUserFromToken,
   challengeController.createChallenge
 ];
+const reviewChain = [
+  jwtMiddleware.verifyToken,
+  attachUserFromToken
+];
 
 const deleteChallengeChain = [
   jwtMiddleware.verifyToken,
@@ -39,6 +43,8 @@ router.post('/', createChallengeChain);
 router.get('/', challengeController.readAllChallenge);
 router.delete('/:id', deleteChallengeChain);
 router.put('/:id', updateChallengeChain);
+router.get('/:id/reviews', challengeController.getReviewsByChallenge);
+router.post('/:id/reviews', reviewChain, challengeController.createReview);
 
 // User Completions 
 router.post('/:challenge_id', createCompletionChain);

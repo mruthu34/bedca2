@@ -1,12 +1,24 @@
 const pool = require("../services/db");
 
+const BONUS_RATIO = 1.5;
+
 module.exports.selectByUserId = (data, callback) => {
   const SQLSTATEMENT = `
-    SELECT i.item_id, i.name, i.cost_points, i.bonus_damage, i.multiplier, i.description, inv.quantity
+    SELECT i.item_id, i.name, i.cost_points, ROUND(i.cost_points * ${BONUS_RATIO}) AS bonus_damage, i.multiplier, i.description, inv.quantity
     FROM Inventory inv
     JOIN Item i ON i.item_id = inv.item_id
     WHERE inv.user_id = ?
     ORDER BY i.item_id ASC;
+  `;
+  const VALUES = [data.user_id];
+  pool.query(SQLSTATEMENT, VALUES, callback);
+};
+
+module.exports.sumQuantityByUserId = (data, callback) => {
+  const SQLSTATEMENT = `
+    SELECT COALESCE(SUM(quantity), 0) AS total_quantity
+    FROM Inventory
+    WHERE user_id = ?;
   `;
   const VALUES = [data.user_id];
   pool.query(SQLSTATEMENT, VALUES, callback);
@@ -24,7 +36,7 @@ module.exports.insertOrIncrease = (data, callback) => {
 
 module.exports.selectByUserAndItem = (data, callback) => {
   const SQLSTATEMENT = `
-    SELECT inv.user_id, inv.item_id, inv.quantity, i.bonus_damage, i.multiplier
+    SELECT inv.user_id, inv.item_id, inv.quantity, ROUND(i.cost_points * ${BONUS_RATIO}) AS bonus_damage, i.multiplier
     FROM Inventory inv
     JOIN Item i ON i.item_id = inv.item_id
     WHERE inv.user_id = ? AND inv.item_id = ?;

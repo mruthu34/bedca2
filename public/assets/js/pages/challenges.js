@@ -9,6 +9,26 @@ import { consumeFlash } from '../auth.js';
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
+let myUserId = getUserIdFromToken();
+let challenges = [];
+let editChallengeId = null;
+let reviewChallengeId = null;
+const filters = { query: '', ownership: 'all', sort: 'newest' };
+const completionCooldownMs = 60 * 1000;
+let cooldownTimer = null;
+
+function notifyBossUpdated(){
+  try {
+    localStorage.setItem('bossUpdateAt', String(Date.now()));
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('boss_updates');
+      bc.postMessage({ type: 'bossUpdate', at: Date.now() });
+      bc.close();
+    }
+  } catch {
+    // ignore cross-tab signaling failures
+  }
+}
 
 if (!requireAuth()) {
   // redirected
@@ -16,11 +36,6 @@ if (!requireAuth()) {
   mountNavbar('challenges');
   init();
 }
-
-let myUserId = getUserIdFromToken();
-let challenges = [];
-let editChallengeId = null;
-const filters = { query: '', ownership: 'all', sort: 'newest' };
 
 function init(){
   bindUi();
@@ -32,6 +47,7 @@ function bindUi(){
   qs('#btnOpenCreate')?.addEventListener('click', () => openEditModal(null));
   qs('#formChallenge')?.addEventListener('submit', submitChallenge);
   qs('#formComplete')?.addEventListener('submit', submitCompletion);
+  qs('#formReview')?.addEventListener('submit', submitReview);
   qs('#challengeSearch')?.addEventListener('input', onFilterChange);
   qs('#challengeFilter')?.addEventListener('change', onFilterChange);
   qs('#challengeSort')?.addEventListener('change', onFilterChange);
@@ -44,8 +60,11 @@ function refresh(){
   return api.get('/challenges')
     .then((rows) => {
       challenges = rows;
-      renderList();
-      return updatePointsChip();
+      return enrichChallengesWithMyReviews(challenges)
+        .then(() => {
+          renderList();
+          return updatePointsChip();
+        });
     })
     .catch((err) => {
       toast(err?.message || 'Could not load challenges.', { kind: 'danger', title: 'Error' });
@@ -67,17 +86,26 @@ function renderList(){
 
   list.innerHTML = filtered.map((c) => {
     const isOwner = (myUserId != null) && String(c.creator_id) === String(myUserId);
+    const creatorLabel = c.creator_username ? escapeHtml(c.creator_username) : 'Unknown';
+    const reviewCount = Number(c.review_count) || 0;
+    let avgRating = Number(c.avg_rating);
+    if (!Number.isFinite(avgRating)) avgRating = 0;
+    const ratingLabel = reviewCount
+      ? `${avgRating.toFixed(1)} / 5 (${reviewCount} review${reviewCount === 1 ? '' : 's'})`
+      : 'No reviews yet';
+    const reviewButtonLabel = c.hasMyReview ? 'Edit Review' : 'Reviews';
     return `
       <div class="col-12 col-lg-6">
         <div class="card-glass p-3 h-100">
           <div class="d-flex justify-content-between gap-3">
             <div>
               <div class="fw-semibold">Challenge #${escapeHtml(c.challenge_id)}</div>
-              <div class="text-muted small">Creator ID: ${escapeHtml(c.creator_id)}</div>
+              <div class="text-muted small">Creator: ${creatorLabel}</div>
             </div>
             <div class="d-flex flex-wrap gap-2 justify-content-end">
               ${isOwner ? `<span class="wq-badge"><i class="bi bi-person-check"></i>Mine</span>` : ''}
               <span class="wq-badge"><i class="bi bi-gift"></i>+${escapeHtml(c.points)} pts</span>
+              <span class="wq-badge"><i class="bi bi-star-fill"></i>${escapeHtml(ratingLabel)}</span>
             </div>
           </div>
 
@@ -86,8 +114,9 @@ function renderList(){
           <div class="d-flex flex-wrap gap-2 mt-3">
             <button class="btn btn-sm btn-primary" data-action="complete" data-id="${c.challenge_id}"><i class="bi bi-check2-circle"></i>Complete</button>
             <button class="btn btn-sm btn-outline-light" data-action="viewAttempts" data-id="${c.challenge_id}"><i class="bi bi-journal-text"></i>Attempts</button>
+            <button class="btn btn-sm btn-outline-light" data-action="reviews" data-id="${c.challenge_id}"><i class="bi bi-chat-right-text"></i>${reviewButtonLabel}</button>
             ${isOwner ? `
-              <button class="btn btn-sm btn-outline-light" data-action="edit" data-id="${c.challenge_id}"><i class="bi bi-pencil"></i>Edit</button>
+              <button class="btn btn-sm btn-outline-light" data-action="edit" data-id="${c.challenge_id}"><i class="bi bi-pencil"></i>Edit Challenge</button>
               <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${c.challenge_id}"><i class="bi bi-trash"></i>Delete</button>
             ` : `<span class="text-muted small align-self-center">You can only edit/delete your own challenges.</span>`}
           </div>
@@ -99,6 +128,7 @@ function renderList(){
   }).join('');
 
   qsa('[data-action]').forEach(btn => btn.addEventListener('click', onAction));
+  applyCompletionCooldowns();
 }
 
 function onAction(e){
@@ -123,6 +153,10 @@ function onAction(e){
   }
   if (action === 'viewAttempts') {
     toggleAttempts(c);
+    return;
+  }
+  if (action === 'reviews') {
+    openReviewsModal(c);
     return;
   }
 }
@@ -181,6 +215,88 @@ function openCompleteModal(challenge){
   new bootstrap.Modal(qs('#completeModal')).show();
 }
 
+function openReviewsModal(challenge){
+  reviewChallengeId = challenge.challenge_id;
+  qs('#reviewsTitle').textContent = `Reviews for Challenge #${challenge.challenge_id}`;
+  qs('#reviewComment').value = '';
+  qs('#reviewRating').value = '5';
+  loadReviews();
+  new bootstrap.Modal(qs('#reviewsModal')).show();
+}
+
+function loadReviews(){
+  const box = qs('#reviewsList');
+  if (!box || !reviewChallengeId) return;
+  box.innerHTML = `<div class="text-muted small">Loading reviews...</div>`;
+  api.get(`/challenges/${reviewChallengeId}/reviews`)
+    .then((rows) => {
+      if (!rows.length) {
+        box.innerHTML = `<div class="text-muted small">No reviews yet. Be the first to leave one.</div>`;
+        return;
+      }
+      box.innerHTML = rows.map(r => `
+        <div class="wq-row">
+          <div class="d-flex justify-content-between">
+            <div class="fw-semibold">${escapeHtml(r.username)}</div>
+            <div class="text-muted small">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+          </div>
+          <div class="text-muted small">${escapeHtml(r.comment || '')}</div>
+        </div>
+      `).join('');
+    })
+    .catch((err) => {
+      box.innerHTML = `<div class="text-muted small">${escapeHtml(err?.message || 'Failed to load reviews.')}</div>`;
+    });
+}
+
+function submitReview(e){
+  e.preventDefault();
+  const btn = qs('#btnSubmitReview');
+  if (!reviewChallengeId) return;
+  const rating = parseInt(qs('#reviewRating').value, 10);
+  const comment = qs('#reviewComment').value.trim();
+
+  setLoading(btn, true, 'Submitting...');
+  api.post(`/challenges/${reviewChallengeId}/reviews`, { rating, comment }, { auth: true })
+    .then(() => {
+      toast('Review submitted.', { kind: 'success', title: 'Thanks!' });
+      markChallengeReviewed(reviewChallengeId);
+      loadReviews();
+    })
+    .catch((err) => {
+      toast(err?.message || 'Could not submit review.', { kind: 'danger', title: 'Error' });
+    })
+    .finally(() => {
+      setLoading(btn, false);
+    });
+}
+
+function enrichChallengesWithMyReviews(rows){
+  if (!myUserId || !Array.isArray(rows) || rows.length === 0) return Promise.resolve();
+  const lookups = rows.map(c =>
+    api.get(`/challenges/${c.challenge_id}/reviews`)
+      .then((reviews) => {
+        c.hasMyReview = Array.isArray(reviews)
+          ? reviews.some(r => String(r.user_id) === String(myUserId))
+          : false;
+      })
+      .catch(() => {
+        c.hasMyReview = false;
+      })
+  );
+  return Promise.all(lookups);
+}
+
+function markChallengeReviewed(challengeId){
+  const id = String(challengeId);
+  const c = challenges.find(x => String(x.challenge_id) === id);
+  if (c) c.hasMyReview = true;
+  const btn = qs(`[data-action="reviews"][data-id="${id}"]`);
+  if (btn) {
+    const icon = btn.querySelector('i')?.outerHTML || '<i class="bi bi-chat-right-text"></i>';
+    btn.innerHTML = `${icon}Edit Review`;
+  }
+}
 function submitCompletion(e){
   e.preventDefault();
   const btn = qs('#btnComplete');
@@ -191,8 +307,10 @@ function submitCompletion(e){
   api.post(`/challenges/${challengeId}`, { details }, { auth: true })
     .then(() => {
       toast('Nice! Points added and boss damage applied (if a boss is active).', { kind: 'success', title: 'Completed' });
-      if (getActiveEffect()) clearActiveEffect();
+      if (getActiveEffect(myUserId)) clearActiveEffect(myUserId);
       addActivity({ title: 'Challenge completed', detail: `Challenge #${challengeId} completed`, icon: 'check2-circle' });
+      notifyBossUpdated();
+      setCompletionCooldown(challengeId);
       bootstrap.Modal.getInstance(qs('#completeModal'))?.hide();
       return updatePointsChip();
     })
@@ -202,6 +320,75 @@ function submitCompletion(e){
     .finally(() => {
       setLoading(btn, false);
     });
+}
+
+function loadCompletionCooldowns(){
+  try {
+    const raw = localStorage.getItem('completionCooldowns');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCompletionCooldowns(map){
+  try {
+    localStorage.setItem('completionCooldowns', JSON.stringify(map));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function setCompletionCooldown(challengeId){
+  const id = String(challengeId);
+  const map = loadCompletionCooldowns();
+  map[id] = Date.now() + completionCooldownMs;
+  saveCompletionCooldowns(map);
+  applyCompletionCooldowns();
+}
+
+function applyCompletionCooldowns(){
+  const map = loadCompletionCooldowns();
+  const now = Date.now();
+  let hasActive = false;
+
+  qsa('[data-action="complete"]').forEach(btn => {
+    const id = String(btn.dataset.id || '');
+    const endAt = map[id];
+    if (!endAt || endAt <= now) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle"></i>Complete';
+      if (endAt) {
+        delete map[id];
+      }
+      return;
+    }
+
+    hasActive = true;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="bi bi-hourglass-split"></i>Wait ${formatRemaining(endAt - now)}`;
+  });
+
+  saveCompletionCooldowns(map);
+  ensureCooldownTicker(hasActive);
+}
+
+function ensureCooldownTicker(hasActive){
+  if (hasActive && !cooldownTimer) {
+    cooldownTimer = setInterval(applyCompletionCooldowns, 1000);
+  } else if (!hasActive && cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
+}
+
+function formatRemaining(ms){
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  if (mins <= 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
 }
 
 function deleteChallenge(challenge, btn){
@@ -243,7 +430,7 @@ function toggleAttempts(challenge){
           <div class="mt-2">
             ${attempts.map(a => `
               <div class="wq-row">
-                <div class="small">User #${escapeHtml(a.user_id)}</div>
+                <div class="small">${escapeHtml(a.user_username || 'Unknown')}</div>
                 <div class="text-muted small">${escapeHtml(a.details || '')}</div>
               </div>
             `).join('')}
@@ -258,10 +445,13 @@ function toggleAttempts(challenge){
 
 function updatePointsChip(){
   const el = qs('#pointsChip');
-  if (!el) return Promise.resolve();
+  const navEl = qs('#navPoints');
+  if (!el && !navEl) return Promise.resolve();
   return api.get('/users/me/points', { auth: true })
     .then((data) => {
-      el.innerHTML = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      const html = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      if (el) el.innerHTML = html;
+      if (navEl) navEl.innerHTML = html;
     })
     .catch(() => {
       // no-op

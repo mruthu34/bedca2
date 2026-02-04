@@ -44,6 +44,7 @@ module.exports.getUsersByChallengeId = (req, res, next) => {
 
     const output = results.map((r) => ({
       user_id: r.user_id,
+      user_username: r.user_username,
       details: r.details
     }));
     return res.status(200).json(output);
@@ -266,9 +267,32 @@ const sendCompletionResponse = (req, res) => {
   });
 };
 
+const enforceCompletionCooldown = (req, res, next) => {
+  const { data } = res.locals.completion;
+  completionModel.selectCooldownByChallengeAndUser(
+    { challenge_id: data.challenge_id, user_id: data.user_id },
+    (err, rows) => {
+      if (err) {
+        console.error("Error completion cooldown:", err);
+        return next(err);
+      }
+      const secondsSince = rows?.[0]?.seconds_since;
+      if (Number.isFinite(secondsSince) && secondsSince < 60) {
+        const waitSeconds = Math.max(1, 60 - Math.floor(secondsSince));
+        return res.status(429).json({
+          message: `Please wait ${waitSeconds} seconds before completing this challenge again.`,
+          retry_after_seconds: waitSeconds
+        });
+      }
+      return next();
+    }
+  );
+};
+
 module.exports.createNewCompletionRecord = [
   initCompletionFlow(false),
   loadUserForCompletion,
+  enforceCompletionCooldown,
   loadChallenge,
   insertCompletion,
   addPointsToUser,

@@ -1,5 +1,12 @@
 const inventoryModel = require("../models/inventoryModel");
 const userEffectModel = require("../models/userEffectModel");
+const bossModel = require("../models/bossModel");
+const {
+  applyDifficultyToItems,
+  getBossDifficultyMultiplier,
+  getBossMinBonus,
+  scaleBonusDamage
+} = require("../utils/bossDifficulty");
 
 module.exports.getInventory = (req, res, next) => {
   const userId = req.user && req.user.user_id;
@@ -7,12 +14,21 @@ module.exports.getInventory = (req, res, next) => {
     return res.status(401).json({ message: "Error: missing user token" });
   }
 
-  inventoryModel.selectByUserId({ user_id: userId }, (error, results) => {
-    if (error) {
-      console.error("Error getInventory:", error);
-      return next(error);
+  bossModel.selectActiveBoss((bossErr, boss) => {
+    if (bossErr) {
+      console.error("Error getInventory (boss):", bossErr);
+      return next(bossErr);
     }
-    return res.status(200).json(results);
+    const multiplier = getBossDifficultyMultiplier(boss);
+    const minBonus = getBossMinBonus(boss);
+    inventoryModel.selectByUserId({ user_id: userId }, (error, results) => {
+      if (error) {
+        console.error("Error getInventory:", error);
+        return next(error);
+      }
+      const scaled = applyDifficultyToItems(results, multiplier, minBonus);
+      return res.status(200).json(scaled);
+    });
   });
 };
 
@@ -41,7 +57,7 @@ module.exports.useItem = (req, res, next) => {
       });
     }
 
-    // No active effect — proceed to consume an item and set the effect.
+    // No active effect - proceed to consume an item and set the effect.
     return inventoryModel.selectByUserAndItem({ user_id: userId, item_id: itemId }, (errSel, rows) => {
       if (errSel) {
         console.error("Error select inventory item:", errSel);
@@ -53,37 +69,48 @@ module.exports.useItem = (req, res, next) => {
 
       const item = rows[0];
 
-      return inventoryModel.decreaseQuantity({ user_id: userId, item_id: itemId }, (errDec, resultDec) => {
-        if (errDec) {
-          console.error("Error decrease inventory:", errDec);
-          return next(errDec);
+      return bossModel.selectActiveBoss((bossErr, boss) => {
+        if (bossErr) {
+          console.error("Error useItem (boss):", bossErr);
+          return next(bossErr);
         }
-        if (resultDec.affectedRows === 0) {
-          return res.status(404).json({ message: "Item not in inventory" });
-        }
+        const multiplier = getBossDifficultyMultiplier(boss);
+        const minBonus = getBossMinBonus(boss);
+        const scaledBonus = scaleBonusDamage(item.bonus_damage, multiplier, minBonus);
 
-        return inventoryModel.deleteIfZero({ user_id: userId, item_id: itemId }, (errDel) => {
-          if (errDel) {
-            console.error("Error cleanup inventory:", errDel);
-            return next(errDel);
+        return inventoryModel.decreaseQuantity({ user_id: userId, item_id: itemId }, (errDec, resultDec) => {
+          if (errDec) {
+            console.error("Error decrease inventory:", errDec);
+            return next(errDec);
+          }
+          if (resultDec.affectedRows === 0) {
+            return res.status(404).json({ message: "Item not in inventory" });
           }
 
-          return userEffectModel.upsertEffect(
-            { user_id: userId, bonus_damage: item.bonus_damage, multiplier: item.multiplier },
-            (errEff) => {
-              if (errEff) {
-                console.error("Error set user effect:", errEff);
-                return next(errEff);
-              }
-
-              return res.status(200).json({
-                message: "Item used for next completion",
-                item_id: itemId,
-                bonus_damage: item.bonus_damage,
-                multiplier: item.multiplier
-              });
+          return inventoryModel.deleteIfZero({ user_id: userId, item_id: itemId }, (errDel) => {
+            if (errDel) {
+              console.error("Error cleanup inventory:", errDel);
+              return next(errDel);
             }
-          );
+
+            return userEffectModel.upsertEffect(
+              { user_id: userId, bonus_damage: scaledBonus, multiplier: item.multiplier },
+              (errEff) => {
+                if (errEff) {
+                  console.error("Error set user effect:", errEff);
+                  return next(errEff);
+                }
+
+                return res.status(200).json({
+                  message: "Item used for next completion",
+                  item_id: itemId,
+                  bonus_damage: scaledBonus,
+                  multiplier: item.multiplier,
+                  difficulty_multiplier: multiplier
+                });
+              }
+            );
+          });
         });
       });
     });

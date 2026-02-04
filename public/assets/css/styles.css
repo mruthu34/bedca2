@@ -180,6 +180,10 @@ h1, h2, h3, h4, h5, .display-6{
   border: 1px solid rgba(255,255,255,.14) !important;
   border-radius: var(--wq-radius-md) !important;
 }
+.form-select option{
+  background: #0b1220;
+  color: #f7f8fc;
+}
 .form-control::placeholder{color: rgba(255,255,255,.55) !important;}
 .form-control:focus, .form-select:focus, .btn:focus-visible{
   box-shadow: 0 0 0 .2rem rgba(255,122,89,.25) !important;

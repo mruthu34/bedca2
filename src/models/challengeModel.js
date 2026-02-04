@@ -13,7 +13,17 @@ pool.query(SQLSTATMENT, VALUES, callback);
 module.exports.selectAll = (callback) =>
 {
     const SQLSTATMENT = `
-    SELECT * FROM wellnesschallenge;
+    SELECT wc.challenge_id,
+      wc.creator_id,
+      u.username AS creator_username,
+      wc.description,
+      wc.points,
+      AVG(r.rating) AS avg_rating,
+      COUNT(r.rating) AS review_count
+    FROM wellnesschallenge wc
+    JOIN User u ON u.user_id = wc.creator_id
+    LEFT JOIN Review r ON r.challenge_id = wc.challenge_id
+    GROUP BY wc.challenge_id, wc.creator_id, u.username, wc.description, wc.points;
     `;
 
     pool.query(SQLSTATMENT, callback);
@@ -21,8 +31,18 @@ module.exports.selectAll = (callback) =>
 module.exports.selectById = (data, callback) =>
 {
     const SQLSTATMENT = `
-    SELECT * FROM wellnesschallenge
-    WHERE challenge_id = ?;
+    SELECT wc.challenge_id,
+      wc.creator_id,
+      u.username AS creator_username,
+      wc.description,
+      wc.points,
+      AVG(r.rating) AS avg_rating,
+      COUNT(r.rating) AS review_count
+    FROM wellnesschallenge wc
+    JOIN User u ON u.user_id = wc.creator_id
+    LEFT JOIN Review r ON r.challenge_id = wc.challenge_id
+    WHERE wc.challenge_id = ?
+    GROUP BY wc.challenge_id, wc.creator_id, u.username, wc.description, wc.points;
     `;
     const VALUES = [data.id];
 
@@ -69,6 +89,29 @@ module.exports.createChallenge = (data, callback) =>
     `;
     const VALUES = [data.user_id, data.description, data.points];
 
+    pool.query(SQLSTATMENT, VALUES, callback);
+}
+
+module.exports.selectCreateCooldownByUserId = (data, callback) => {
+    const SQLSTATMENT = `
+    SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_since
+    FROM wellnesschallenge
+    WHERE creator_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1;
+    `;
+    const VALUES = [data.user_id];
+    pool.query(SQLSTATMENT, VALUES, callback);
+}
+
+module.exports.countCreatedTodayByUserId = (data, callback) => {
+    const SQLSTATMENT = `
+    SELECT COUNT(*) AS challenge_count
+    FROM wellnesschallenge
+    WHERE creator_id = ?
+      AND DATE(created_at) = CURDATE();
+    `;
+    const VALUES = [data.user_id];
     pool.query(SQLSTATMENT, VALUES, callback);
 }
 

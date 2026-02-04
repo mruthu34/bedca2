@@ -1,5 +1,7 @@
 const challengeModel = require('../models/challengeModel');
 const usermodel = require("../models/userModel");
+const reviewModel = require("../models/reviewModel");
+const completionModel = require("../models/completionModel");
 
 module.exports.createNewUser = (req, res, next) =>
 {
@@ -162,6 +164,7 @@ module.exports.updateChallengeById = (req, res, next) =>
                         challenge_id: parseInt(updateData.id),
                         description: updateData.description,
                         creator_id: challenge.creator_id,
+                        creator_username: challenge.creator_username,
                         points: updateData.points
                     });
                 }
@@ -214,7 +217,7 @@ module.exports.createChallenge = (req, res, next) =>
         points: req.body.points
     }
 
-    const callback = (error, results, fields) => {
+    const createCallback = (error, results, fields) => {
         if (error) {
             console.error("Error createChallenge:", error);
             res.status(500).json(error);
@@ -228,5 +231,113 @@ module.exports.createChallenge = (req, res, next) =>
         }
     }
 
-    challengeModel.createChallenge(data, callback);
+    challengeModel.selectCreateCooldownByUserId({ user_id: userId }, (errCooldown, cooldownRows) => {
+        if (errCooldown) {
+            console.error("Error createChallenge (cooldown):", errCooldown);
+            return res.status(500).json(errCooldown);
+        }
+        const secondsSince = cooldownRows?.[0]?.seconds_since;
+        if (Number.isFinite(secondsSince) && secondsSince < 60) {
+            const waitSeconds = Math.max(1, 60 - Math.floor(secondsSince));
+            return res.status(429).json({
+                message: `Please wait ${waitSeconds} seconds before creating another challenge.`,
+                retry_after_seconds: waitSeconds
+            });
+        }
+
+        challengeModel.countCreatedTodayByUserId({ user_id: userId }, (errCount, countRows) => {
+            if (errCount) {
+                console.error("Error createChallenge (daily limit):", errCount);
+                return res.status(500).json(errCount);
+            }
+            const count = countRows?.[0]?.challenge_count ?? 0;
+            if (count >= 1) {
+                return res.status(429).json({
+                    message: "You can only create one new challenge per day."
+                });
+            }
+            return challengeModel.createChallenge(data, createCallback);
+        });
+    });
 }
+
+module.exports.getReviewsByChallenge = (req, res, next) => {
+    const data = {
+        challenge_id: req.params.id
+    };
+
+    reviewModel.selectByChallengeId(data, (error, results) => {
+        if (error) {
+            console.error("Error getReviewsByChallenge:", error);
+            return res.status(500).json(error);
+        }
+        return res.status(200).json(results);
+    });
+};
+
+module.exports.createReview = (req, res, next) => {
+    const userId = req.user && req.user.user_id;
+    const challengeId = req.params.id;
+    const rating = parseInt(req.body.rating, 10);
+    const comment = req.body.comment;
+
+    if (userId == undefined) {
+        return res.status(401).json({ message: "Error: missing user token" });
+    }
+    if (challengeId == undefined) {
+        return res.status(400).json({ message: "Error: challenge_id is required" });
+    }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Error: rating must be an integer 1-5" });
+    }
+
+    completionModel.existsByChallengeAndUser({ challenge_id: challengeId, user_id: userId }, (errComp, compRows) => {
+        if (errComp) {
+            console.error("Error checking completion:", errComp);
+            return res.status(500).json(errComp);
+        }
+        if (!compRows.length) {
+            return res.status(403).json({ message: "You can only review challenges you completed." });
+        }
+
+        reviewModel.selectByChallengeAndUser({ challenge_id: challengeId, user_id: userId }, (errSel, rows) => {
+            if (errSel) {
+                console.error("Error checking review:", errSel);
+                return res.status(500).json(errSel);
+            }
+            if (rows.length) {
+                return reviewModel.updateByChallengeAndUser(
+                    { challenge_id: challengeId, user_id: userId, rating, comment },
+                    (errUpd) => {
+                        if (errUpd) {
+                            console.error("Error updateReview:", errUpd);
+                            return res.status(500).json(errUpd);
+                        }
+                        return res.status(200).json({
+                            review_id: rows[0].review_id,
+                            challenge_id: parseInt(challengeId, 10),
+                            user_id: userId,
+                            rating,
+                            comment: comment || null,
+                            message: "Review updated."
+                        });
+                    }
+                );
+            }
+
+            reviewModel.insertSingle({ challenge_id: challengeId, user_id: userId, rating, comment }, (errIns, result) => {
+                if (errIns) {
+                    console.error("Error createReview:", errIns);
+                    return res.status(500).json(errIns);
+                }
+                return res.status(201).json({
+                    review_id: result.insertId,
+                    challenge_id: parseInt(challengeId, 10),
+                    user_id: userId,
+                    rating,
+                    comment: comment || null
+                });
+            });
+        });
+    });
+};

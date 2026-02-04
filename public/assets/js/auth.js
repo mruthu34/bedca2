@@ -1,5 +1,5 @@
 import { ROUTES } from './config.js';
-import { clearToken, getToken, setToken, clearActiveEffect, clearActivity } from './storage.js';
+import { clearToken, getToken, setToken, clearActivity } from './storage.js';
 import { api } from './api.js';
 
 const FLASH_KEY = 'wq_flash';
@@ -58,7 +58,6 @@ export function requireAuth(){
 
 export function logout(){
   clearToken();
-  clearActiveEffect();
   clearActivity();
   window.location.href = ROUTES.home;
 }

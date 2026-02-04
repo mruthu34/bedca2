@@ -66,14 +66,25 @@ module.exports.selectProfileStats = (data, callback) => {
       u.user_id,
       u.username,
       u.points,
+      u.inventory_capacity,
       COALESCE(SUM(bdl.damage), 0) AS total_damage,
       COALESCE(SUM(bdl.points_spent), 0) AS total_points_spent
     FROM User u
     LEFT JOIN BossDamageLog bdl ON bdl.user_id = u.user_id
     WHERE u.user_id = ?
-    GROUP BY u.user_id, u.username, u.points;
+    GROUP BY u.user_id, u.username, u.points, u.inventory_capacity;
   `;
   const VALUES = [data.user_id];
+  pool.query(SQLSTATEMENT, VALUES, callback);
+};
+
+module.exports.increaseInventoryCapacity = (data, callback) => {
+  const SQLSTATEMENT = `
+    UPDATE User
+    SET inventory_capacity = inventory_capacity + ?
+    WHERE user_id = ?;
+  `;
+  const VALUES = [data.slots, data.user_id];
   pool.query(SQLSTATEMENT, VALUES, callback);
 };
 

@@ -1,5 +1,5 @@
 import { mountNavbar } from '../components/navbar.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getUserIdFromToken } from '../auth.js';
 import { api } from '../api.js';
 import { qs, toast, setLoading, escapeHtml, formatNumber } from '../ui.js';
 import { addActivity, clearActiveEffect, getActiveEffect } from '../storage.js';
@@ -25,6 +25,8 @@ const bossImages = {
   "Perfectionism Cyclops": "https://p7.hiclipart.com/preview/797/687/703/cyclops-jean-grey-professor-x-nightcrawler-x-men-supernatural-powers.jpg"
 };
 
+let activeBoss = null;
+
 function getBossImage(name){
   return bossImages[name] || "/assets/img/bosses/default.webp";
 }
@@ -42,8 +44,27 @@ if (!requireAuth()) {
 
 function init(){
   bindUi();
+  bindRefreshSignals();
   refresh();
   updateDamagePreview();
+}
+
+function bindRefreshSignals(){
+  window.addEventListener('pageshow', () => refresh());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refresh();
+  });
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'bossUpdateAt') refresh();
+  });
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    const bc = new BroadcastChannel('boss_updates');
+    bc.addEventListener('message', (e) => {
+      if (e?.data?.type === 'bossUpdate') refresh();
+    });
+    window.addEventListener('beforeunload', () => bc.close(), { once: true });
+  }
 }
 
 function bindUi(){
@@ -60,10 +81,13 @@ function refresh(){
 
 function loadPoints(){
   const el = qs('#pointsChip');
-  if (!el) return Promise.resolve();
+  const navEl = qs('#navPoints');
+  if (!el && !navEl) return Promise.resolve();
   return api.get('/users/me/points', { auth: true })
     .then((data) => {
-      el.innerHTML = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      const html = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      if (el) el.innerHTML = html;
+      if (navEl) navEl.innerHTML = html;
     })
     .catch(() => {});
 }
@@ -74,6 +98,7 @@ function loadBoss(){
 
   return api.get('/boss')
     .then((boss) => {
+      activeBoss = boss;
       const pct = boss.max_hp ? Math.max(0, Math.min(100, (boss.current_hp / boss.max_hp) * 100)) : 0;
       const displayName = getBossDisplayName(boss.name);
       const imgSrc = getBossImage(displayName);
@@ -102,6 +127,7 @@ function loadBoss(){
       `;
     })
     .catch(() => {
+      activeBoss = null;
       el.innerHTML = `<div class="text-muted">No active boss found. Complete a challenge to kick off the raid.</div>`;
     });
 }
@@ -139,13 +165,29 @@ function hitBoss(e){
     toast('Please enter a positive integer.', { kind: 'warning', title: 'Invalid points' });
     return;
   }
+  if (activeBoss && Number.isFinite(activeBoss.current_hp)) {
+    const effect = getActiveEffect(getUserIdFromToken());
+    const damage = effect
+      ? (points_spent * (Number(effect.multiplier) || 1)) + (Number(effect.bonus_damage) || 0)
+      : points_spent;
+    if (damage > activeBoss.current_hp) {
+      const overkill = Math.max(0, Math.round(damage - activeBoss.current_hp));
+      const ok = confirm(`This will defeat the boss and waste about ${formatNumber(overkill)} damage. Continue?`);
+      if (!ok) return;
+    }
+  }
 
   setLoading(btn, true, 'Attacking...');
   api.post('/boss/hit', { points_spent }, { auth: true })
     .then((res) => {
       toast(`You dealt ${formatNumber(res.damage)} damage!`, { kind: 'success', title: 'Hit landed' });
-      if (getActiveEffect()) clearActiveEffect();
+      if (getActiveEffect(getUserIdFromToken())) clearActiveEffect(getUserIdFromToken());
       addActivity({ title: 'Boss hit', detail: `${formatNumber(res.damage)} damage dealt`, icon: 'crosshair' });
+      try {
+        localStorage.setItem('bossUpdateAt', String(Date.now()));
+      } catch {
+        // ignore cross-tab signaling failures
+      }
       refresh();
     })
     .catch((err) => {
@@ -164,11 +206,19 @@ function updateDamagePreview(){
     el.textContent = 'Estimated damage appears here.';
     return;
   }
-  const effect = getActiveEffect();
+  const effect = getActiveEffect(getUserIdFromToken());
   if (effect) {
     const total = (points * (Number(effect.multiplier) || 1)) + (Number(effect.bonus_damage) || 0);
     el.innerHTML = `Estimated damage: <span class="fw-semibold">${formatNumber(total)}</span> (includes +${formatNumber(effect.bonus_damage || 0)} and x${formatNumber(effect.multiplier || 1)})`;
+    if (activeBoss && Number.isFinite(activeBoss.current_hp) && total > activeBoss.current_hp) {
+      const overkill = Math.max(0, Math.round(total - activeBoss.current_hp));
+      el.innerHTML += ` <span class="text-warning">Overkill: ~${formatNumber(overkill)} damage wasted.</span>`;
+    }
   } else {
     el.innerHTML = `Estimated damage: <span class="fw-semibold">${formatNumber(points)}</span> (no active item effect)`;
+    if (activeBoss && Number.isFinite(activeBoss.current_hp) && points > activeBoss.current_hp) {
+      const overkill = Math.max(0, Math.round(points - activeBoss.current_hp));
+      el.innerHTML += ` <span class="text-warning">Overkill: ~${formatNumber(overkill)} damage wasted.</span>`;
+    }
   }
 }

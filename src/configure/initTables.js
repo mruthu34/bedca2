@@ -8,7 +8,8 @@ const createUserTable = `
     username VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE,
     password VARCHAR(255),
-    points INT DEFAULT 0
+    points INT DEFAULT 0,
+    inventory_capacity INT NOT NULL DEFAULT 20
   );
 `;
 
@@ -18,6 +19,7 @@ const createChallengeTable = `
     creator_id INT NOT NULL,
     description TEXT NOT NULL,
     points INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (creator_id) REFERENCES User(user_id)
       ON DELETE CASCADE ON UPDATE CASCADE
   );
@@ -98,6 +100,21 @@ const createBossDamageLogTable = `
       ON DELETE SET NULL ON UPDATE CASCADE
   );
 `;
+const createReviewTable = `
+  CREATE TABLE IF NOT EXISTS Review (
+    review_id INT AUTO_INCREMENT PRIMARY KEY,
+    challenge_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_review (challenge_id, user_id),
+    FOREIGN KEY (challenge_id) REFERENCES WellnessChallenge(challenge_id)
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES User(user_id)
+      ON DELETE CASCADE ON UPDATE CASCADE
+  );
+`;
 pool.query(createUserTable, (err) => {
   if (err) console.log("User table error:", err);
   else console.log("User table ready");
@@ -136,4 +153,9 @@ pool.query(createBossTable, (err) => {
 pool.query(createBossDamageLogTable, (err) => {
   if (err) console.log("BossDamageLog table error:", err);
   else console.log("BossDamageLog table ready");
+});
+
+pool.query(createReviewTable, (err) => {
+  if (err) console.log("Review table error:", err);
+  else console.log("Review table ready");
 });

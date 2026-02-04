@@ -1,5 +1,5 @@
 import { mountNavbar } from '../components/navbar.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getUserIdFromToken } from '../auth.js';
 import { api } from '../api.js';
 import { qs, qsa, toast, setLoading, escapeHtml, formatNumber } from '../ui.js';
 import { addActivity, getActiveEffect, setActiveEffect } from '../storage.js';
@@ -9,6 +9,10 @@ import { consumeFlash } from '../auth.js';
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
+let inv = [];
+const myUserId = getUserIdFromToken();
+let invCapacity = 20;
+let invUsed = 0;
 
 if (!requireAuth()) {
   // redirected
@@ -17,8 +21,6 @@ if (!requireAuth()) {
   init();
 }
 
-let inv = [];
-
 function init(){
   qs('#btnRefresh')?.addEventListener('click', refresh);
   renderActiveEffect();
@@ -26,7 +28,7 @@ function init(){
 }
 
 function refresh(){
-  Promise.allSettled([loadInventory(), loadPoints()]).then(() => {
+  Promise.allSettled([loadInventory(), loadPoints(), loadCapacity()]).then(() => {
     renderActiveEffect();
   });
 }
@@ -50,6 +52,8 @@ function loadInventory(){
   return api.get('/inventory', { auth: true })
     .then((rows) => {
       inv = rows;
+      invUsed = (inv || []).reduce((sum, row) => sum + (parseInt(row.quantity, 10) || 0), 0);
+      renderCapacityBanner();
 
       if (!inv.length) {
         el.innerHTML = `<div class="text-muted">Your inventory is empty. Buy items in the shop to boost your next boss hit.</div>`;
@@ -62,6 +66,15 @@ function loadInventory(){
     .catch((err) => {
       el.innerHTML = `<div class="text-muted">${escapeHtml(err?.message || 'Failed to load')}</div>`;
     });
+}
+
+function loadCapacity(){
+  return api.get('/users/me/profile', { auth: true })
+    .then((data) => {
+      invCapacity = Number(data.inventory_capacity) || 20;
+      renderCapacityBanner();
+    })
+    .catch(() => {});
 }
 
 function renderRow(it){
@@ -108,7 +121,7 @@ function useItem(e){
         bonus_damage: res.bonus_damage,
         multiplier: res.multiplier,
         name: item?.name || 'Inventory item'
-      });
+      }, myUserId);
       addActivity({ title: 'Item activated', detail: item?.name || `Item #${item_id}`, icon: 'lightning-charge' });
       refresh();
     })
@@ -123,7 +136,7 @@ function useItem(e){
 function renderActiveEffect(){
   const el = qs('#activeEffectBanner');
   if (!el) return;
-  const effect = getActiveEffect();
+  const effect = getActiveEffect(myUserId);
   if (!effect) {
     el.innerHTML = `
       <div class="wq-section-title mb-1"><i class="bi bi-lightning-charge"></i>Active Effect</div>
@@ -135,6 +148,24 @@ function renderActiveEffect(){
     <div class="wq-section-title mb-1"><i class="bi bi-lightning-charge"></i>Active Effect</div>
     <div class="fw-semibold">${escapeHtml(effect.name || 'Item effect')}</div>
     <div class="text-muted small">+${formatNumber(effect.bonus_damage || 0)} bonus damage, x${formatNumber(effect.multiplier || 1)} multiplier</div>
+  `;
+}
+
+function renderCapacityBanner(){
+  const el = qs('#invCapacityBanner');
+  if (!el) return;
+  const cap = Number(invCapacity) || 20;
+  const used = Number(invUsed) || 0;
+  const isFull = used >= cap;
+  const isOver = used > cap;
+  el.innerHTML = `
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <div class="wq-section-title mb-1"><i class="bi bi-box-seam"></i>Inventory Capacity</div>
+        <div class="text-muted small">${formatNumber(used)} / ${formatNumber(cap)} items used${isOver ? ' - over capacity' : ''}</div>
+      </div>
+      ${isFull ? `<a class="btn btn-sm btn-outline-light" href="/shop.html"><i class="bi bi-bag-plus"></i>Buy more inventory</a>` : ''}
+    </div>
   `;
 }
 

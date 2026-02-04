@@ -1,5 +1,5 @@
 import { mountNavbar } from '../components/navbar.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getUserIdFromToken } from '../auth.js';
 import { api } from '../api.js';
 import { qs, toast, formatNumber } from '../ui.js';
 import { getActiveEffect, getActivity } from '../storage.js';
@@ -44,7 +44,25 @@ if (!requireAuth()) {
 function init(){
   renderActivity();
   renderActiveEffect();
+  bindRefreshSignals();
   Promise.allSettled([loadPoints(), loadBossSummary(), loadInventorySummary()]);
+}
+
+function bindRefreshSignals(){
+  window.addEventListener('pageshow', () => loadBossSummary());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) loadBossSummary();
+  });
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'bossUpdateAt') loadBossSummary();
+  });
+  if (typeof BroadcastChannel !== 'undefined') {
+    const bc = new BroadcastChannel('boss_updates');
+    bc.addEventListener('message', (e) => {
+      if (e?.data?.type === 'bossUpdate') loadBossSummary();
+    });
+    window.addEventListener('beforeunload', () => bc.close(), { once: true });
+  }
 }
 
 function loadPoints(){
@@ -109,7 +127,7 @@ function loadInventorySummary(){
 function renderActiveEffect(){
   const el = qs('#activeEffectSummary');
   if (!el) return;
-  const effect = getActiveEffect();
+  const effect = getActiveEffect(getUserIdFromToken());
   if (!effect) {
     el.textContent = 'No active item effect detected.';
     return;
