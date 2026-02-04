@@ -22,7 +22,7 @@ module.exports.selectByChallengeAndUser = (data, callback) => {
   pool.query(SQLSTATEMENT, VALUES, callback);
 };
 
-module.exports.insertSingle = (data, callback) => {
+module.exports.insertSingle = (data, callback) => { 
   const SQLSTATEMENT = `
     INSERT INTO Review (challenge_id, user_id, rating, comment)
     VALUES (?, ?, ?, ?);

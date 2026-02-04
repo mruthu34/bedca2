@@ -13,52 +13,18 @@ const jwtMiddleware = require('../middleware/jwtMiddleware');
 const userController = require('../controllers/userController');
 const exampleController = require('../controllers/exampleController');
 
-const loginChain = [
-    userController.login,
-    bcryptMiddleware.comparePassword,
-    jwtMiddleware.generateToken,
-    jwtMiddleware.sendToken
-];
-
-const registerChain = [
-    userController.checkUsernameOrEmailExist,
-    bcryptMiddleware.hashPassword,
-    userController.register,
-    jwtMiddleware.generateToken,
-    jwtMiddleware.sendToken
-];
-
-const jwtGenerateChain = [
-    exampleController.preTokenGenerate,
-    jwtMiddleware.generateToken,
-    exampleController.beforeSendToken,
-    jwtMiddleware.sendToken
-];
-
-const bcryptCompareChain = [
-    exampleController.preCompare,
-    bcryptMiddleware.comparePassword,
-    exampleController.showCompareSuccess
-];
-
-const bcryptHashChain = [
-    bcryptMiddleware.hashPassword,
-    exampleController.showHashing
-];
-
-
 router.use('/users', userRoute);
 router.use('/challenges',challengeRoute)
 router.use("/boss", bossRoute);
 router.use("/shop", shopRoute);
 router.use("/inventory", inventoryRoute);
-router.post("/login", loginChain);
-router.post("/register", registerChain);
+router.post("/login", userController.login, bcryptMiddleware.comparePassword, jwtMiddleware.generateToken, jwtMiddleware.sendToken);
+router.post("/register", userController.checkUsernameOrEmailExist, bcryptMiddleware.hashPassword, userController.register, jwtMiddleware.generateToken, jwtMiddleware.sendToken);
 
-router.post("/jwt/generate", jwtGenerateChain);
+router.post("/jwt/generate", exampleController.preTokenGenerate, jwtMiddleware.generateToken, exampleController.beforeSendToken, jwtMiddleware.sendToken);
 router.get("/jwt/verify", jwtMiddleware.verifyToken, exampleController.showTokenVerified);
-router.post("/bcrypt/compare", bcryptCompareChain);
-router.post("/bcrypt/hash", bcryptHashChain);
+router.post("/bcrypt/compare", exampleController.preCompare, bcryptMiddleware.comparePassword, exampleController.showCompareSuccess);
+router.post("/bcrypt/hash", bcryptMiddleware.hashPassword, exampleController.showHashing);
 
 
 

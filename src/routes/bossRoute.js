@@ -5,17 +5,6 @@ const bossController = require("../controllers/bossController");
 const completionController = require("../controllers/completionController");
 const jwtMiddleware = require("../middleware/jwtMiddleware");
 
-const attachUserFromToken = (req, res, next) => {
-  req.user = { user_id: res.locals.userId };
-  next();
-};
-
-const hitBossChain = [
-  jwtMiddleware.verifyToken,
-  attachUserFromToken,
-  completionController.hitBoss
-];
-
 // GET /boss
 router.get("/", bossController.getActiveBoss);
 
@@ -23,6 +12,6 @@ router.get("/", bossController.getActiveBoss);
 router.get("/leaderboard", bossController.getBossLeaderboard);
 
 // POST /boss/hit
-router.post("/hit", hitBossChain);
+router.post("/hit", jwtMiddleware.verifyToken, completionController.hitBoss);
 
 module.exports = router;
