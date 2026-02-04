@@ -19,6 +19,22 @@ const BOSS_NAMES = [
   "Perfectionism Cyclops"
 ];
 
+const runSteps = (steps, req, res, next) => {
+  let index = 0;
+  const run = (err) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    const step = steps[index++];
+    if (!step) return;
+    try {
+      step(req, res, run);
+    } catch (e) {
+      return next(e);
+    }
+  };
+  run();
+};
+
 function pickNextBossName(currentName){
   const normalized = (currentName || "").trim().toLowerCase();
   const idx = BOSS_NAMES.findIndex((name) => name.toLowerCase() === normalized);
@@ -163,28 +179,37 @@ const loadUserEffect = (req, res, next) => {
 };
 
 const loadActiveBossForCompletion = (req, res, next) => {
-  const { data, effectRows } = res.locals.completion;
+  bossModel.selectActiveBoss((errB, boss) => onActiveBossForCompletion(errB, boss, req, res, next));
+};
 
-  bossModel.selectActiveBoss((errB, boss) => {
-    if (errB) {
-      console.error("Error getting boss:", errB);
-      return next(errB);
-    }
-    if (!boss) {
-      if (effectRows.length) {
-        return userEffectModel.clearByUserId({ user_id: data.user_id }, (errClear) => {
-          if (errClear) {
-            console.error("Error clearing user effect:", errClear);
-            return next(errClear);
-          }
-          return sendCompletionResponse(req, res);
-        });
-      }
-      return sendCompletionResponse(req, res);
-    }
-    res.locals.completion.boss = boss;
-    return next();
-  });
+const onActiveBossForCompletion = (errB, boss, req, res, next) => {
+  if (errB) {
+    console.error("Error getting boss:", errB);
+    return next(errB);
+  }
+  if (!boss) {
+    return onNoBossForCompletion(req, res, next);
+  }
+  res.locals.completion.boss = boss;
+  return next();
+};
+
+const onNoBossForCompletion = (req, res, next) => {
+  const { data, effectRows } = res.locals.completion;
+  if (effectRows.length) {
+    return userEffectModel.clearByUserId({ user_id: data.user_id }, (errClear) =>
+      onClearEffectAfterNoBoss(errClear, req, res, next)
+    );
+  }
+  return sendCompletionResponse(req, res);
+};
+
+const onClearEffectAfterNoBoss = (errClear, req, res, next) => {
+  if (errClear) {
+    console.error("Error clearing user effect:", errClear);
+    return next(errClear);
+  }
+  return sendCompletionResponse(req, res);
 };
 
 const logBossDamage = (req, res, next) => {
@@ -289,7 +314,7 @@ const enforceCompletionCooldown = (req, res, next) => {
   );
 };
 
-module.exports.createNewCompletionRecord = [
+module.exports.createNewCompletionRecord = (req, res, next) => runSteps([
   initCompletionFlow(false),
   loadUserForCompletion,
   enforceCompletionCooldown,
@@ -304,7 +329,7 @@ module.exports.createNewCompletionRecord = [
   spawnBossIfDead,
   clearEffectIfAny,
   sendCompletionResponse
-];
+], req, res, next);
 
 const initHitBoss = (req, res, next) => {
   const pointsSpent = req.body && parseInt(req.body.points_spent, 10);
@@ -373,28 +398,37 @@ const loadEffectForHitBoss = (req, res, next) => {
 };
 
 const loadActiveBossForHitBoss = (req, res, next) => {
-  const { userId, effectRows } = res.locals.hitBoss;
+  bossModel.selectActiveBoss((errB, boss) => onActiveBossForHitBoss(errB, boss, req, res, next));
+};
 
-  bossModel.selectActiveBoss((errB, boss) => {
-    if (errB) {
-      console.error("Error getting boss:", errB);
-      return next(errB);
-    }
-    if (!boss) {
-      if (effectRows.length) {
-        return userEffectModel.clearByUserId({ user_id: userId }, (errClear) => {
-          if (errClear) {
-            console.error("Error clearing user effect:", errClear);
-            return next(errClear);
-          }
-          return res.status(404).json({ message: "No active boss found" });
-        });
-      }
-      return res.status(404).json({ message: "No active boss found" });
-    }
-    res.locals.hitBoss.boss = boss;
-    return next();
-  });
+const onActiveBossForHitBoss = (errB, boss, req, res, next) => {
+  if (errB) {
+    console.error("Error getting boss:", errB);
+    return next(errB);
+  }
+  if (!boss) {
+    return onNoBossForHitBoss(req, res, next);
+  }
+  res.locals.hitBoss.boss = boss;
+  return next();
+};
+
+const onNoBossForHitBoss = (req, res, next) => {
+  const { userId, effectRows } = res.locals.hitBoss;
+  if (effectRows.length) {
+    return userEffectModel.clearByUserId({ user_id: userId }, (errClear) =>
+      onClearEffectAfterHitBoss(errClear, req, res, next)
+    );
+  }
+  return res.status(404).json({ message: "No active boss found" });
+};
+
+const onClearEffectAfterHitBoss = (errClear, req, res, next) => {
+  if (errClear) {
+    console.error("Error clearing user effect:", errClear);
+    return next(errClear);
+  }
+  return res.status(404).json({ message: "No active boss found" });
 };
 
 const logHitBossDamage = (req, res, next) => {
@@ -477,7 +511,7 @@ const sendHitBossResponse = (req, res) => {
   });
 };
 
-module.exports.hitBoss = [
+module.exports.hitBoss = (req, res, next) => runSteps([
   initHitBoss,
   loadUserForHitBoss,
   deductPointsForHitBoss,
@@ -489,4 +523,4 @@ module.exports.hitBoss = [
   spawnBossAfterHitIfDead,
   clearEffectAfterHitIfAny,
   sendHitBossResponse
-];
+], req, res, next);

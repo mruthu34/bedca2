@@ -6,23 +6,45 @@ const { applyDifficultyToItems, getBossDifficultyMultiplier, getBossMinBonus } =
 
 const INVENTORY_SLOT_PACK = 5;
 const INVENTORY_SLOT_COST = 100;
-module.exports.listItems = (req, res, next) => {
-  bossModel.selectActiveBoss((bossErr, boss) => {
-    if (bossErr) {
-      console.error("Error listItems (boss):", bossErr);
-      return next(bossErr);
+
+const runSteps = (steps, req, res, next) => {
+  let index = 0;
+  const run = (err) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    const step = steps[index++];
+    if (!step) return;
+    try {
+      step(req, res, run);
+    } catch (e) {
+      return next(e);
     }
-    const multiplier = getBossDifficultyMultiplier(boss);
-    const minBonus = getBossMinBonus(boss);
-    itemModel.selectAll((error, results) => {
-      if (error) {
-        console.error("Error listItems:", error);
-        return next(error);
-      }
-      const scaled = applyDifficultyToItems(results, multiplier, minBonus);
-      return res.status(200).json(scaled);
-    });
-  });
+  };
+  run();
+};
+module.exports.listItems = (req, res, next) => {
+  bossModel.selectActiveBoss((bossErr, boss) => onListItemsBoss(bossErr, boss, req, res, next));
+};
+
+const onListItemsBoss = (bossErr, boss, req, res, next) => {
+  if (bossErr) {
+    console.error("Error listItems (boss):", bossErr);
+    return next(bossErr);
+  }
+  const multiplier = getBossDifficultyMultiplier(boss);
+  const minBonus = getBossMinBonus(boss);
+  res.locals.listItems = { multiplier, minBonus };
+  return itemModel.selectAll((error, results) => onListItemsItems(error, results, req, res, next));
+};
+
+const onListItemsItems = (error, results, req, res, next) => {
+  if (error) {
+    console.error("Error listItems:", error);
+    return next(error);
+  }
+  const { multiplier, minBonus } = res.locals.listItems;
+  const scaled = applyDifficultyToItems(results, multiplier, minBonus);
+  return res.status(200).json(scaled);
 };
 
 const validateBuyItem = (req, res, next) => {
@@ -150,7 +172,7 @@ const sendBuyItemResponse = (req, res) => {
   });
 };
 
-module.exports.buyItem = [
+module.exports.buyItem = (req, res, next) => runSteps([
   validateBuyItem,
   loadItem,
   loadUserAndCheckPoints,
@@ -158,7 +180,7 @@ module.exports.buyItem = [
   deductPoints,
   updateInventory,
   sendBuyItemResponse
-];
+], req, res, next);
 
 const validateBuyCapacity = (req, res, next) => {
   const userId = req.user && req.user.user_id;
@@ -240,11 +262,11 @@ const sendCapacityResponse = (req, res) => {
   });
 };
 
-module.exports.buyCapacity = [
+module.exports.buyCapacity = (req, res, next) => runSteps([
   validateBuyCapacity,
   loadUserForCapacity,
   checkPointsForCapacity,
   deductPointsForCapacity,
   increaseCapacity,
   sendCapacityResponse
-];
+], req, res, next);

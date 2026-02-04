@@ -1,54 +1,68 @@
-# WellQuest (CA2 Frontend + CA1 Backend)
+# Boss Breaker (CA2 Frontend + CA1 Backend)
 
-This repository contains a **Wellness Challenge Web Application** with a gamified flow:
+This repository contains a Wellness Challenge web app with a gamified flow:
 - Users register/login (JWT-based auth)
-- Users create and complete wellness challenges to earn points
-- Points can be used for gamification features: **Boss Raid**, **Shop**, and **Inventory**
+- Users create and complete challenges to earn points
+- Points can be spent in Boss Raid, Shop, and Inventory features
 
-> Note: The CA2 brief requires a Review System page, but this repo currently focuses on the other required frontend components.
+## Setup
 
-## 1) Setup
+### Requirements
+- Node.js + npm
+- MySQL (or compatible) database
 
-1. Install dependencies:
+### Install dependencies
 ```bash
 npm install
 ```
 
-2. Configure your `.env` (DB credentials + JWT config). Example keys used by this backend:
+### Configure environment
+Create a `.env` file in the project root with these keys:
+- `DB_HOST`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_DATABASE`
 - `JWT_SECRET_KEY`
 - `JWT_EXPIRES_IN`
 - `JWT_ALGORITHM`
-- DB connection variables (see `src/services/db.js`)
 
-3. Start the server:
+Database connection details are read in `src/services/db.js`.
+
+### Start the server
 ```bash
 node index.js
 ```
 
-Open the app:
+App URLs:
 - Frontend: `http://localhost:3000/`
-- API: same origin, e.g. `POST http://localhost:3000/login`
+- API: same origin (example: `POST http://localhost:3000/login`)
 
-## 2) Frontend Pages
+### Database notes for reviewers
+- Tables are created automatically on startup via `src/configure/initTables.js`.
+- The Shop and Boss pages require seed data:
+  - Insert items into the `Item` table to populate the shop.
+  - Insert a boss into the `Boss` table (or create one via a seed) to see an active boss.
+
+## Frontend Pages
 
 Frontend is served from `public/` (Express static):
-- `/index.html` – landing page
-- `/login.html` – login
-- `/register.html` – registration
-- `/dashboard.html` – points + shortcuts
-- `/challenges.html` – CRUD + completion + attempts
-- `/boss.html` – boss HP, leaderboard, spend points to hit boss
-- `/shop.html` – list items + purchase
-- `/inventory.html` – view inventory + use item for next completion
+- `/index.html` - landing page
+- `/login.html` - login
+- `/register.html` - registration
+- `/dashboard.html` - points + shortcuts
+- `/challenges.html` - CRUD + completion + attempts + reviews
+- `/boss.html` - boss HP, leaderboard, spend points to hit boss
+- `/shop.html` - list items + purchase
+- `/inventory.html` - view inventory + use item for next completion
 
-## 3) Auth (JWT)
+## Auth (JWT)
 
-After login/register, token is saved to `localStorage` and automatically attached to protected requests as:
+After login/register, a token is saved to `localStorage` and attached to protected requests as:
 ```
 Authorization: Bearer <token>
 ```
 
-## 4) UI/Code Structure
+## UI/Code Structure
 
 - Bootstrap 5 + custom theme: `public/assets/css/styles.css`
 - Small JS modules:
@@ -56,4 +70,3 @@ Authorization: Bearer <token>
   - `public/assets/js/auth.js` (JWT helpers)
   - `public/assets/js/components/navbar.js` (shared nav)
   - `public/assets/js/pages/*` (page controllers)
-
