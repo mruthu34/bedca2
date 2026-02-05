@@ -5,6 +5,7 @@ import { qs, toast, setLoading } from '../ui.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
@@ -14,6 +15,7 @@ mountNavbar('');
 const form = qs('#loginForm');
 const btn = qs('#btnLogin');
 
+// Handle login submit with client-side validation and loading state.
 form?.addEventListener('submit', (e) => {
   e.preventDefault();
   const username = qs('#username')?.value?.trim();

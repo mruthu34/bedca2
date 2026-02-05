@@ -1,11 +1,12 @@
 import { mountNavbar } from '../components/navbar.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, getUserIdFromToken } from '../auth.js';
 import { api } from '../api.js';
 import { qs, qsa, toast, setLoading, escapeHtml, formatNumber } from '../ui.js';
 import { addActivity } from '../storage.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
@@ -30,16 +31,20 @@ function init(){
   refresh();
 }
 
+// Load items + ownership + points + capacity in parallel.
 function refresh(){
   Promise.allSettled([loadItems(), loadPoints(), loadOwned(), loadCapacity()]);
 }
 
 function loadPoints(){
   const el = qs('#pointsChip');
-  if (!el) return Promise.resolve();
+  const navEl = qs('#navPoints');
+  if (!el && !navEl) return Promise.resolve();
   return api.get('/users/me/points', { auth: true })
     .then((data) => {
-      el.innerHTML = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      const html = `<i class="bi bi-stars"></i>${formatNumber(data.points ?? 0)} pts`;
+      if (el) el.innerHTML = html;
+      if (navEl) navEl.innerHTML = html;
     })
     .catch(() => {});
 }
@@ -63,6 +68,7 @@ function loadItems(){
     });
 }
 
+// Render shop cards once we have items + ownership info.
 function renderItems(){
   const el = qs('#itemGrid');
   if (!el) return;
@@ -99,6 +105,7 @@ function loadCapacity(){
     .catch(() => {});
 }
 
+// Special card for buying inventory slots.
 function renderCapacityCard(){
   const used = Number(inventoryUsed) || 0;
   const cap = Number(inventoryCapacity) || 20;
@@ -176,6 +183,7 @@ function renderItem(it){
   `;
 }
 
+// Buy a specific item with quantity from the stepper.
 function onBuy(e){
   const btn = e.currentTarget;
   const item_id = parseInt(btn.dataset.buy, 10);
@@ -190,7 +198,7 @@ function onBuy(e){
   api.post('/shop/buy', { item_id, qty }, { auth: true })
     .then((res) => {
       toast(`Purchased x${res.quantity} ${res.name}.`, { kind: 'success', title: 'Purchased' });
-      addActivity({ title: 'Item purchased', detail: `x${res.quantity} ${res.name}`, icon: 'bag-plus' });
+      addActivity({ title: 'Item purchased', detail: `x${res.quantity} ${res.name}`, icon: 'bag-plus' }, getUserIdFromToken());
       refresh();
     })
     .catch((err) => {
@@ -201,6 +209,7 @@ function onBuy(e){
     });
 }
 
+// Stepper control for item quantities.
 function onStep(e){
   const btn = e.currentTarget;
   const target = btn.dataset.target;
@@ -212,6 +221,7 @@ function onStep(e){
   input.value = next;
 }
 
+// Buy inventory slot packs.
 function onBuyCapacity(e){
   const btn = e.currentTarget;
   const qty = parseInt(qs('#qty_capacity')?.value, 10) || 1;
@@ -220,7 +230,7 @@ function onBuyCapacity(e){
   api.post('/shop/buy-capacity', { qty }, { auth: true })
     .then((res) => {
       toast(`Added ${formatNumber(res.slots_added)} slots.`, { kind: 'success', title: 'Inventory upgraded' });
-      addActivity({ title: 'Inventory upgraded', detail: `+${formatNumber(res.slots_added)} slots`, icon: 'bag-plus' });
+      addActivity({ title: 'Inventory upgraded', detail: `+${formatNumber(res.slots_added)} slots`, icon: 'bag-plus' }, getUserIdFromToken());
       refresh();
     })
     .catch((err) => {
@@ -231,6 +241,7 @@ function onBuyCapacity(e){
     });
 }
 
+// Stepper control for capacity pack quantity.
 function onStepCapacity(e){
   const btn = e.currentTarget;
   const input = qs('#qty_capacity');
@@ -240,6 +251,7 @@ function onStepCapacity(e){
   input.value = next;
 }
 
+// Simple name-based asset mapping for item thumbnails.
 function getItemImage(it){
   const name = String(it.name || '').toLowerCase();
   if (name.includes('shield') || name.includes('guard')) return '/assets/img/items/shield.svg';

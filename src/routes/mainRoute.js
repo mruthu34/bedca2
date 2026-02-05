@@ -18,6 +18,7 @@ router.use('/challenges',challengeRoute)
 router.use("/boss", bossRoute);
 router.use("/shop", shopRoute);
 router.use("/inventory", inventoryRoute);
+// Login/registration are multi-step pipelines (validation -> bcrypt -> jwt).
 router.post("/login", userController.login, bcryptMiddleware.comparePassword, jwtMiddleware.generateToken, jwtMiddleware.sendToken);
 router.post("/register", userController.checkUsernameOrEmailExist, bcryptMiddleware.hashPassword, userController.register, jwtMiddleware.generateToken, jwtMiddleware.sendToken);
 

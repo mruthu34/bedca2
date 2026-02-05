@@ -1,9 +1,11 @@
 const bossModel = require("../models/bossModel");
 
+// Returns the currently active boss (highest active boss_id).
 module.exports.getActiveBoss = (req, res, next) => {
   bossModel.selectActiveBoss((err, boss) => onGetActiveBoss(err, boss, req, res, next));
 };
 
+// Returns cumulative damage per user across all bosses.
 module.exports.getBossLeaderboard = (req, res, next) => {
   bossModel.selectBossLeaderboard((err, rows) => onGetBossLeaderboard(err, rows, req, res, next));
 };

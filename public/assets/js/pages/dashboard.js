@@ -6,9 +6,11 @@ import { getActiveEffect, getActivity } from '../storage.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
+// Map known boss names to images (fallback in getBossImage()).
 const bossImages = {
   "Stress Dragon": "https://static.wikia.nocookie.net/dragoncity/images/0/0a/Stressed_Dragon_1.png/revision/latest?cb=20250528062816",
   "Burnout Titan": "/assets/img/bosses/burnout-titan.webp",
@@ -29,6 +31,7 @@ function getBossImage(name){
   return bossImages[name] || "/assets/img/bosses/default.webp";
 }
 
+// Backward-compat mapping for older boss name.
 function getBossDisplayName(name){
   return name === "Focus Leech" ? "Focus Lord" : name;
 }
@@ -48,6 +51,7 @@ function init(){
   Promise.allSettled([loadPoints(), loadBossSummary(), loadInventorySummary()]);
 }
 
+// Refresh boss summary on tab focus/storage updates to keep HP fresh.
 function bindRefreshSignals(){
   window.addEventListener('pageshow', () => loadBossSummary());
   document.addEventListener('visibilitychange', () => {
@@ -56,6 +60,7 @@ function bindRefreshSignals(){
   window.addEventListener('storage', (e) => {
     if (e.key === 'bossUpdateAt') loadBossSummary();
   });
+  // Cross-tab sync using BroadcastChannel when available.
   if (typeof BroadcastChannel !== 'undefined') {
     const bc = new BroadcastChannel('boss_updates');
     bc.addEventListener('message', (e) => {
@@ -82,6 +87,7 @@ function loadBossSummary(){
   if (!el) return;
   return api.get('/boss')
     .then((boss) => {
+      // Clamp progress to [0, 100] to avoid layout glitches.
       const pct = boss.max_hp ? Math.max(0, Math.min(100, (boss.current_hp / boss.max_hp) * 100)) : 0;
       const displayName = getBossDisplayName(boss.name);
       const imgSrc = getBossImage(displayName);
@@ -141,7 +147,7 @@ function renderActiveEffect(){
 function renderActivity(){
   const el = qs('#recentActivity');
   if (!el) return;
-  const rows = getActivity();
+  const rows = getActivity(getUserIdFromToken());
   if (!rows.length) {
     el.innerHTML = `<div class="text-muted small">No activity yet. Complete a challenge or hit the boss.</div>`;
     return;

@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// Delete player and reset auto-increment (assignment requirement).
 module.exports.deletePlayer = (data, callback) =>
 {
     const SQLSTATEMENT = `
@@ -13,6 +14,7 @@ module.exports.deletePlayer = (data, callback) =>
     pool.query(SQLSTATEMENT, VALUES, callback);
 };
 
+// Link a player to a user via join table.
 module.exports.insertPlayerUserRelationship = (data, callback) => {
   const SQLSTATEMENT = `
     INSERT INTO Playeruserrel (player_id, user_id)

@@ -80,6 +80,7 @@ module.exports.updateUserById = (req, res, next) =>
     usermodel.updateById(data, callback);
 }
 
+// Return only the authenticated user's points (no other profile data).
 module.exports.getMyPoints = (req, res) => {
     const userId = req.user && req.user.user_id;
     if (userId == undefined) {
@@ -98,6 +99,7 @@ module.exports.getMyPoints = (req, res) => {
     });
 };
 
+// Load a richer profile summary (points + inventory + boss stats).
 module.exports.getMyProfile = (req, res) => {
     const userId = req.user && req.user.user_id;
     if (userId == undefined) {
@@ -178,6 +180,7 @@ module.exports.createNewUser = (req, res, next) =>
 
     usermodel.insertSingle(data, callback);
 }
+// Login is a 2-step flow: fetch hash + user id, then bcrypt compare in middleware.
 module.exports.login = (req, res, next) => {
     try { 
         const requiredFields = ['username', 'password'];
@@ -201,6 +204,7 @@ module.exports.login = (req, res, next) => {
                 if(results.length == 0){
                     res.status(404).json({message: "User not found"}); 
                 } else {
+                    // Stash data for bcrypt middleware to compare.
                     res.locals.userId = results[0].user_id
                     res.locals.hash = results[0].password
                     next();
@@ -219,9 +223,11 @@ module.exports.login = (req, res, next) => {
 //////////////////////////////////////////////////////
 // CONTROLLER FOR REGISTER
 //////////////////////////////////////////////////////
+// Validate username/email and ensure uniqueness before hashing password.
 module.exports.checkUsernameOrEmailExist = (req, res, next) => {
     try {
         const requiredFields = ['username', 'email'];
+        // Restrict to common domains for the assignment's rules.
         const allowedEmailDomains = ['gmail.com', 'hotmail.com', 'outlook.com'];
 
         for (const field of requiredFields) {
@@ -237,6 +243,7 @@ module.exports.checkUsernameOrEmailExist = (req, res, next) => {
             res.status(400).json({ message: "email is invalid" });
             return;
         }
+        // Compare domain only (e.g., "gmail.com") regardless of case.
         const domain = email.toLowerCase().split('@')[1];
         if (!allowedEmailDomains.includes(domain)) {
             res.status(400).json({ message: `Email must be from: ${allowedEmailDomains.join(', ')}` });
@@ -270,6 +277,7 @@ module.exports.checkUsernameOrEmailExist = (req, res, next) => {
 
 };
 
+// Insert the user using the pre-hashed password from bcrypt middleware.
 module.exports.register = (req, res, next) => {
         try { 
             const data = {
@@ -325,6 +333,7 @@ module.exports.deletePlayer = (req, res) => {
     }
 };
 
+// Create player, then create player-user relation in the next handler.
 module.exports.createNewPlayer = (req, res, next) =>
 {
     if(req.body.name == undefined || req.body.level == undefined)
@@ -355,6 +364,7 @@ module.exports.createNewPlayer = (req, res, next) =>
     playerModel.insertSingle(data, callback);
 }
 
+// Bridge table insert to link user and player records.
 module.exports.createPlayerUserRel = (req, res) => {
     if (!res.locals.playerId || !res.locals.userId) {
         res.status(400).json({ message: "Error: missing player or user id" });

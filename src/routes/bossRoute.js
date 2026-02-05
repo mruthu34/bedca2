@@ -11,7 +11,7 @@ router.get("/", bossController.getActiveBoss);
 // GET /boss/leaderboard
 router.get("/leaderboard", bossController.getBossLeaderboard);
 
-// POST /boss/hit
+// POST /boss/hit (requires auth)
 router.post("/hit", jwtMiddleware.verifyToken, completionController.hitBoss);
 
 module.exports = router;

@@ -7,9 +7,9 @@ const jwtMiddleware = require("../middleware/jwtMiddleware");
 // GET /shop/items
 router.get("/items", shopController.listItems);
 
-// POST /shop/buy
+// POST /shop/buy (requires auth)
 router.post("/buy", jwtMiddleware.verifyToken, shopController.buyItem);
-// POST /shop/buy-capacity
+// POST /shop/buy-capacity (requires auth)
 router.post("/buy-capacity", jwtMiddleware.verifyToken, shopController.buyCapacity);
 
 module.exports = router;

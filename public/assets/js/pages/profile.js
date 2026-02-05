@@ -5,6 +5,7 @@ import { qs, toast, setLoading, formatNumber } from '../ui.js';
 import { clearToken } from '../storage.js';
 import { ROUTES } from '../config.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
@@ -34,6 +35,7 @@ function refresh(){
     });
 }
 
+// Load profile stats and update visible chips/labels.
 function loadProfile(){
   return api.get('/users/me/profile', { auth: true })
     .then((data) => {
@@ -56,6 +58,7 @@ function loadProfile(){
     });
 }
 
+// Confirm and delete account, then clear local session.
 function deleteAccount(){
   const confirmed = window.confirm('Delete your account? This cannot be undone.');
   if (!confirmed) return;

@@ -3,6 +3,7 @@ import { getToken, clearToken } from './storage.js';
 import { setFlash } from './auth.js';
 import { ROUTES } from './config.js';
 
+// Parse JSON but fall back to raw text for non-JSON error responses.
 function parseJsonSafe(res) {
   return res.text().then((text) => {
     if (!text) return null;
@@ -14,12 +15,14 @@ function parseJsonSafe(res) {
   });
 }
 
+// Normalize error shape so UI can display consistent messages.
 function buildError(status, data) {
   const message = (data && (data.message || data.error)) || `Request failed (HTTP ${status})`;
   return { status, message, data };
 }
 
 
+// Clear token + redirect to login for expired/invalid sessions.
 function handleAuthFailure(data){
   // Clear token and redirect to login with a friendly message
   clearToken();
@@ -30,6 +33,7 @@ function handleAuthFailure(data){
   if (!onAuthPage) window.location.href = ROUTES.login;
 }
 
+// Main API helper with optional auth header + consistent error handling.
 export function apiRequest(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { Accept: 'application/json' };
   let payload;

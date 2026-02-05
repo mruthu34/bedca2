@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// Run on app start to ensure schema exists (idempotent CREATE TABLE IF NOT EXISTS).
 console.log("Creating CA1 tables...");
 
 const createUserTable = `
@@ -115,6 +116,7 @@ const createReviewTable = `
       ON DELETE CASCADE ON UPDATE CASCADE
   );
 `;
+// Create tables in a simple sequence; each query is independent.
 pool.query(createUserTable, (err) => {
   if (err) console.log("User table error:", err);
   else console.log("User table ready");

@@ -19,6 +19,7 @@ const BOSS_NAMES = [
   "Perfectionism Cyclops"
 ];
 
+// Run a list of middleware-like steps in series without nesting callbacks everywhere.
 const runSteps = (steps, req, res, next) => {
   let index = 0;
   const run = (err) => {
@@ -35,6 +36,7 @@ const runSteps = (steps, req, res, next) => {
   run();
 };
 
+// Rotate boss names in a fixed loop; wrap back to the start when we hit the end.
 function pickNextBossName(currentName){
   const normalized = (currentName || "").trim().toLowerCase();
   const idx = BOSS_NAMES.findIndex((name) => name.toLowerCase() === normalized);
@@ -84,6 +86,7 @@ module.exports.deleteUserCompletions = (req, res, next) => {
   });
 };
 
+// Initialize shared completion data and mark whether this completion should damage the boss.
 const initCompletionFlow = (applyBossDamage) => (req, res, next) => {
   const data = {
     challenge_id: req.params.challenge_id ?? req.params.id,
@@ -162,6 +165,7 @@ const addPointsToUser = (req, res, next) => {
   });
 };
 
+// Load any temporary damage effects to apply to boss damage this completion.
 const loadUserEffect = (req, res, next) => {
   const { data, challenge } = res.locals.completion;
 
@@ -170,9 +174,11 @@ const loadUserEffect = (req, res, next) => {
       console.error("Error getting user effect:", errEff);
       return next(errEff);
     }
+    // Default effect means "no bonus" to avoid extra branching downstream.
     const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
     res.locals.completion.effectRows = effRows;
     res.locals.completion.effect = effect;
+    // Damage scales with challenge points, then adds a flat bonus.
     res.locals.completion.damage = (challenge.points * effect.multiplier) + effect.bonus_damage;
     return next();
   });
@@ -194,6 +200,7 @@ const onActiveBossForCompletion = (errB, boss, req, res, next) => {
   return next();
 };
 
+// If no boss is active, clear any lingering effects and finish the request.
 const onNoBossForCompletion = (req, res, next) => {
   const { data, effectRows } = res.locals.completion;
   if (effectRows.length) {
@@ -249,12 +256,14 @@ const deactivateBossIfDead = (req, res, next) => {
   });
 };
 
+// If the boss was just deactivated, spawn the next boss with higher HP.
 const spawnBossIfDead = (req, res, next) => {
   const { boss, deactivateResult } = res.locals.completion;
 
   if (deactivateResult.affectedRows !== 1) {
     return next();
   }
+  // Difficulty curve: increase HP by 25% and add a flat 50.
   const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
   const newName = pickNextBossName(boss.name);
 
@@ -292,6 +301,7 @@ const sendCompletionResponse = (req, res) => {
   });
 };
 
+// Basic per-user, per-challenge cooldown to prevent spam completions.
 const enforceCompletionCooldown = (req, res, next) => {
   const { data } = res.locals.completion;
   completionModel.selectCooldownByChallengeAndUser(
@@ -301,6 +311,7 @@ const enforceCompletionCooldown = (req, res, next) => {
         console.error("Error completion cooldown:", err);
         return next(err);
       }
+      // `seconds_since` is computed in SQL; if missing, allow the completion.
       const secondsSince = rows?.[0]?.seconds_since;
       if (Number.isFinite(secondsSince) && secondsSince < 60) {
         const waitSeconds = Math.max(1, 60 - Math.floor(secondsSince));
@@ -331,6 +342,7 @@ module.exports.createNewCompletionRecord = (req, res, next) => runSteps([
   sendCompletionResponse
 ], req, res, next);
 
+// Initialize a "hit boss" request that spends points for damage.
 const initHitBoss = (req, res, next) => {
   const pointsSpent = req.body && parseInt(req.body.points_spent, 10);
   const userId = req.user && req.user.user_id;
@@ -338,6 +350,7 @@ const initHitBoss = (req, res, next) => {
   if (userId == undefined) {
     return res.status(401).json({ message: "Error: missing user token" });
   }
+  // Only allow positive integer spends to keep damage math predictable.
   if (!Number.isInteger(pointsSpent) || pointsSpent <= 0) {
     return res.status(400).json({ message: "Error: points_spent must be a positive integer" });
   }
@@ -346,6 +359,7 @@ const initHitBoss = (req, res, next) => {
   return next();
 };
 
+// Load user and verify they can afford the points spend.
 const loadUserForHitBoss = (req, res, next) => {
   const { userId } = res.locals.hitBoss;
 
@@ -366,6 +380,7 @@ const loadUserForHitBoss = (req, res, next) => {
   });
 };
 
+// Deduct points using a conditional update so balance can't go negative.
 const deductPointsForHitBoss = (req, res, next) => {
   const { userId, pointsSpent } = res.locals.hitBoss;
 
@@ -381,6 +396,7 @@ const deductPointsForHitBoss = (req, res, next) => {
   });
 };
 
+// Apply any temporary damage effects to the points-spent damage.
 const loadEffectForHitBoss = (req, res, next) => {
   const { userId, pointsSpent } = res.locals.hitBoss;
 
@@ -389,9 +405,11 @@ const loadEffectForHitBoss = (req, res, next) => {
       console.error("Error getting user effect:", errEff);
       return next(errEff);
     }
+    // Default effect means "no bonus" to avoid extra branching downstream.
     const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
     res.locals.hitBoss.effectRows = effRows;
     res.locals.hitBoss.effect = effect;
+    // Damage scales with points spent, then adds a flat bonus.
     res.locals.hitBoss.damage = (pointsSpent * effect.multiplier) + effect.bonus_damage;
     return next();
   });
@@ -413,6 +431,7 @@ const onActiveBossForHitBoss = (errB, boss, req, res, next) => {
   return next();
 };
 
+// If no boss is active, clear any lingering effects and return 404.
 const onNoBossForHitBoss = (req, res, next) => {
   const { userId, effectRows } = res.locals.hitBoss;
   if (effectRows.length) {
@@ -468,12 +487,14 @@ const deactivateHitBossIfDead = (req, res, next) => {
   });
 };
 
+// If the boss was just deactivated, spawn the next boss with higher HP.
 const spawnBossAfterHitIfDead = (req, res, next) => {
   const { boss, deactivateResult } = res.locals.hitBoss;
 
   if (deactivateResult.affectedRows !== 1) {
     return next();
   }
+  // Difficulty curve: increase HP by 25% and add a flat 50.
   const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
   const newName = pickNextBossName(boss.name);
 
@@ -501,6 +522,7 @@ const clearEffectAfterHitIfAny = (req, res, next) => {
   });
 };
 
+// Return damage results without exposing the full user object.
 const sendHitBossResponse = (req, res) => {
   const { boss, damage, pointsSpent, user } = res.locals.hitBoss;
   return res.status(200).json({

@@ -10,6 +10,7 @@ const VALUES = [data.description, data.user_id,data.points];
 
 pool.query(SQLSTATMENT, VALUES, callback);
 }
+// Return challenge list with aggregate review stats.
 module.exports.selectAll = (callback) =>
 {
     const SQLSTATMENT = `
@@ -28,6 +29,7 @@ module.exports.selectAll = (callback) =>
 
     pool.query(SQLSTATMENT, callback);
 }
+// Return a single challenge with aggregate review stats.
 module.exports.selectById = (data, callback) =>
 {
     const SQLSTATMENT = `
@@ -92,6 +94,7 @@ module.exports.createChallenge = (data, callback) =>
     pool.query(SQLSTATMENT, VALUES, callback);
 }
 
+// Latest challenge creation time for cooldown enforcement.
 module.exports.selectCreateCooldownByUserId = (data, callback) => {
     const SQLSTATMENT = `
     SELECT TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_since
@@ -104,6 +107,7 @@ module.exports.selectCreateCooldownByUserId = (data, callback) => {
     pool.query(SQLSTATMENT, VALUES, callback);
 }
 
+// Daily limit for challenge creation.
 module.exports.countCreatedTodayByUserId = (data, callback) => {
     const SQLSTATMENT = `
     SELECT COUNT(*) AS challenge_count

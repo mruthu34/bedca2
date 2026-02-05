@@ -8,6 +8,7 @@ const {
   scaleBonusDamage
 } = require("../utils/bossDifficulty");
 
+// Return user inventory with boss difficulty scaling applied to item stats.
 module.exports.getInventory = (req, res, next) => {
   const userId = req.user && req.user.user_id;
   if (userId == undefined) {
@@ -38,6 +39,7 @@ module.exports.useItem = (req, res, next) => {
   );
 };
 
+// Fetch current boss to compute difficulty scaling for display.
 const onGetInventoryBoss = (bossErr, boss, req, res, next) => {
   if (bossErr) {
     console.error("Error getInventory (boss):", bossErr);
@@ -60,10 +62,12 @@ const onGetInventoryItems = (error, results, req, res, next) => {
     return next(error);
   }
   const { multiplier, minBonus } = res.locals.inventory;
+  // Scale item stats so the UI reflects current boss difficulty.
   const scaled = applyDifficultyToItems(results, multiplier, minBonus);
   return res.status(200).json(scaled);
 };
 
+// Only allow one active effect at a time to prevent stacking bonuses.
 const onCheckActiveEffect = (errActive, activeRows, req, res, next) => {
   if (errActive) {
     console.error("Error checking active effect:", errActive);
@@ -103,11 +107,13 @@ const onUseItemBoss = (bossErr, boss, req, res, next) => {
   const { item, userId, itemId } = res.locals.useItem;
   const multiplier = getBossDifficultyMultiplier(boss);
   const minBonus = getBossMinBonus(boss);
+  // Scale flat bonus damage using boss difficulty rules.
   const scaledBonus = scaleBonusDamage(item.bonus_damage, multiplier, minBonus);
 
   res.locals.useItem.multiplier = multiplier;
   res.locals.useItem.scaledBonus = scaledBonus;
 
+  // Consume the item before applying its effect.
   return inventoryModel.decreaseQuantity(
     { user_id: userId, item_id: itemId },
     (errDec, resultDec) => onDecreaseQuantity(errDec, resultDec, req, res, next)
@@ -136,6 +142,7 @@ const onDeleteIfZero = (errDel, req, res, next) => {
     return next(errDel);
   }
   const { userId, itemId, item, scaledBonus, multiplier } = res.locals.useItem;
+  // Store the effect so the next completion/boss hit can consume it.
   return userEffectModel.upsertEffect(
     { user_id: userId, bonus_damage: scaledBonus, multiplier: item.multiplier },
     (errEff) => onUpsertEffect(errEff, req, res, next)

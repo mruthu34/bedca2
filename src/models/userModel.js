@@ -50,6 +50,7 @@ module.exports.addPoints = (data, callback) =>
     pool.query(SQLSTATMENT, VALUES, callback);
 }
 
+// Conditional update prevents negative balances.
 module.exports.deductPointsIfEnough = (data, callback) => {
   const SQLSTATEMENT = `
     UPDATE User
@@ -60,6 +61,7 @@ module.exports.deductPointsIfEnough = (data, callback) => {
   pool.query(SQLSTATEMENT, VALUES, callback);
 };
 
+// Aggregate totals from boss damage log for profile stats.
 module.exports.selectProfileStats = (data, callback) => {
   const SQLSTATEMENT = `
     SELECT
@@ -116,6 +118,7 @@ module.exports.login = (data, callback) => {
 //////////////////////////////////////////////////////
 // MODEL FOR REGISTER
 //////////////////////////////////////////////////////
+// Uses multiple statements to check email + username in one round trip.
 module.exports.readUserByEmailAndUsername = (data, callback) => {
 
     const SQLSTATEMENT = `

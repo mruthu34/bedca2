@@ -4,6 +4,7 @@ import { logout } from '../auth.js';
 import { api } from '../api.js';
 import { formatNumber } from '../ui.js';
 
+// Render navbar with auth-aware links and optional active state.
 export function mountNavbar(active){
   const el = document.getElementById('appNavbar');
   if (!el) return;
@@ -45,15 +46,6 @@ export function mountNavbar(active){
         <div class="d-flex gap-2 align-items-center">
           ${authed ? `
             <span id="navPoints" class="wq-pill"><i class="bi bi-stars"></i>-- pts</span>
-            <div class="dropdown">
-              <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-badge"></i>Menu
-              </button>
-              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                <li><a class="dropdown-item" href="${ROUTES.profile}"><i class="bi bi-person-circle"></i>Profile</a></li>
-                <li><a class="dropdown-item" href="${ROUTES.inventory}"><i class="bi bi-backpack"></i>Inventory</a></li>
-              </ul>
-            </div>
             <button id="btnLogout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i>Logout</button>
           ` : `
             <a class="btn btn-outline-light btn-sm" href="${ROUTES.login}"><i class="bi bi-box-arrow-in-right"></i>Login</a>
@@ -68,9 +60,11 @@ export function mountNavbar(active){
   const btn = document.getElementById('btnLogout');
   if (btn) btn.addEventListener('click', logout);
 
+  // Lazy-load points to avoid blocking initial render.
   if (authed) loadPoints();
 }
 
+// Fetch points to show in the navbar pill.
 function loadPoints(){
   const el = document.getElementById('navPoints');
   if (!el) return;

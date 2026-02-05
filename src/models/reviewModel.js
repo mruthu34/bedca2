@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// List reviews newest-first with usernames for display.
 module.exports.selectByChallengeId = (data, callback) => {
   const SQLSTATEMENT = `
     SELECT r.review_id, r.challenge_id, r.user_id, u.username, r.rating, r.comment, r.created_at

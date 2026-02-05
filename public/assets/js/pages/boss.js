@@ -6,9 +6,11 @@ import { addActivity, clearActiveEffect, getActiveEffect } from '../storage.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
+// Map known boss names to images (fallback in getBossImage()).
 const bossImages = {
   "Stress Dragon": "https://static.wikia.nocookie.net/dragoncity/images/0/0a/Stressed_Dragon_1.png/revision/latest?cb=20250528062816",
   "Burnout Titan": "https://static.wikia.nocookie.net/shingekinokyojin/images/e/ed/Colossal_Titan_%28Anime%29_character_image_%28Armin_Arlelt%29.png/revision/latest?cb=20220222211301",
@@ -49,6 +51,7 @@ function init(){
   updateDamagePreview();
 }
 
+// Refresh boss data on tab focus/storage updates to keep HP fresh.
 function bindRefreshSignals(){
   window.addEventListener('pageshow', () => refresh());
   document.addEventListener('visibilitychange', () => {
@@ -58,6 +61,7 @@ function bindRefreshSignals(){
     if (e.key === 'bossUpdateAt') refresh();
   });
 
+  // Cross-tab sync using BroadcastChannel when available.
   if (typeof BroadcastChannel !== 'undefined') {
     const bc = new BroadcastChannel('boss_updates');
     bc.addEventListener('message', (e) => {
@@ -99,6 +103,7 @@ function loadBoss(){
   return api.get('/boss')
     .then((boss) => {
       activeBoss = boss;
+      // Clamp progress to [0, 100] to avoid layout glitches.
       const pct = boss.max_hp ? Math.max(0, Math.min(100, (boss.current_hp / boss.max_hp) * 100)) : 0;
       const displayName = getBossDisplayName(boss.name);
       const imgSrc = getBossImage(displayName);
@@ -165,6 +170,7 @@ function hitBoss(e){
     toast('Please enter a positive integer.', { kind: 'warning', title: 'Invalid points' });
     return;
   }
+  // Warn about large overkill to avoid wasting points.
   if (activeBoss && Number.isFinite(activeBoss.current_hp)) {
     const effect = getActiveEffect(getUserIdFromToken());
     const damage = effect
@@ -182,7 +188,7 @@ function hitBoss(e){
     .then((res) => {
       toast(`You dealt ${formatNumber(res.damage)} damage!`, { kind: 'success', title: 'Hit landed' });
       if (getActiveEffect(getUserIdFromToken())) clearActiveEffect(getUserIdFromToken());
-      addActivity({ title: 'Boss hit', detail: `${formatNumber(res.damage)} damage dealt`, icon: 'crosshair' });
+      addActivity({ title: 'Boss hit', detail: `${formatNumber(res.damage)} damage dealt`, icon: 'crosshair' }, getUserIdFromToken());
       try {
         localStorage.setItem('bossUpdateAt', String(Date.now()));
       } catch {
@@ -198,6 +204,7 @@ function hitBoss(e){
     });
 }
 
+// Live damage preview based on points input + active item effect.
 function updateDamagePreview(){
   const el = qs('#damagePreview');
   if (!el) return;

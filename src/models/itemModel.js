@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// Item bonus damage is derived from cost for simple scaling.
 const BONUS_RATIO = 1.5;
 
 module.exports.selectAll = (callback) => {

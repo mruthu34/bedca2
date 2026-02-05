@@ -3,6 +3,7 @@ const usermodel = require("../models/userModel");
 const reviewModel = require("../models/reviewModel");
 const completionModel = require("../models/completionModel");
 
+// Create a user from the challenge module (legacy path kept for assignment brief).
 module.exports.createNewUser = (req, res, next) =>
 {
     if(req.body.username == undefined)
@@ -28,7 +29,7 @@ module.exports.createNewUser = (req, res, next) =>
             console.error("Error createNewUser:", error);
             res.status(500).json(error);
         } else {
-            // brief expects object, not raw mysql results
+            // Brief expects a shaped object, not raw MySQL result metadata.
             res.status(201).json({
                 user_id: results.insertId,
                 username: data.username,
@@ -53,6 +54,7 @@ module.exports.readAllChallenge = (req, res, next) =>
 
     challengeModel.selectAll(callback);
 }
+// Delete a challenge only if the requester is the creator.
 module.exports.deleteChallengeById = (req, res, next) =>
 {
     const userId = req.user && req.user.user_id;
@@ -71,6 +73,7 @@ module.exports.deleteChallengeById = (req, res, next) =>
     );
 }
 
+// Update a challenge only if the requester is the creator.
 module.exports.updateChallengeById = (req, res, next) =>
 {
     const userId = req.user && req.user.user_id;
@@ -117,6 +120,7 @@ module.exports.deleteUserCompletions = (req, res, next) =>
 
     challengeModel.deleteByUserId(data, callback);
 }
+// Create a challenge with a cooldown + daily limit.
 module.exports.createChallenge = (req, res, next) =>
 {
     const userId = req.user && req.user.user_id;
@@ -263,6 +267,7 @@ const onCreateCooldown = (errCooldown, cooldownRows, req, res, next) => {
         console.error("Error createChallenge (cooldown):", errCooldown);
         return res.status(500).json(errCooldown);
     }
+    // `seconds_since` is computed in SQL; if missing, allow creation.
     const secondsSince = cooldownRows?.[0]?.seconds_since;
     if (Number.isFinite(secondsSince) && secondsSince < 60) {
         const waitSeconds = Math.max(1, 60 - Math.floor(secondsSince));
@@ -283,6 +288,7 @@ const onCreateDailyLimit = (errCount, countRows, req, res, next) => {
         console.error("Error createChallenge (daily limit):", errCount);
         return res.status(500).json(errCount);
     }
+    // Simple daily limit (per user) enforced in DB query.
     const count = countRows?.[0]?.challenge_count ?? 0;
     if (count >= 1) {
         return res.status(429).json({
@@ -314,6 +320,7 @@ const onReviewCompletionCheck = (errComp, compRows, req, res, next) => {
         console.error("Error checking completion:", errComp);
         return res.status(500).json(errComp);
     }
+    // Only allow reviews from users who completed the challenge.
     if (!compRows.length) {
         return res.status(403).json({ message: "You can only review challenges you completed." });
     }
@@ -329,6 +336,7 @@ const onReviewSelect = (errSel, rows, req, res, next) => {
         console.error("Error checking review:", errSel);
         return res.status(500).json(errSel);
     }
+    // If a review already exists, update it instead of inserting a duplicate.
     if (rows.length) {
         return onReviewUpdate(rows[0].review_id, req, res, next);
     }

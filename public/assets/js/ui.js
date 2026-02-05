@@ -1,6 +1,8 @@
+// Tiny DOM helpers to keep page scripts terse.
 export function qs(sel, root=document){ return root.querySelector(sel); }
 export function qsa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
+// Escape untrusted text before injecting into the DOM.
 export function escapeHtml(str=''){
   return String(str)
     .replaceAll('&','&amp;')
@@ -16,6 +18,7 @@ export function formatNumber(n){
   return num.toLocaleString();
 }
 
+// Bootstrap toast wrapper with sane defaults.
 export function toast(message, { title='Boss Breaker', kind='info', delay=3500 }={}){
   const container = document.getElementById('toastContainer');
   if (!container) return alert(`${title}: ${message}`);
@@ -44,6 +47,7 @@ export function toast(message, { title='Boss Breaker', kind='info', delay=3500 }
   el.addEventListener('hidden.bs.toast', () => el.remove());
 }
 
+// Toggle a button into a loading state without losing its original label.
 export function setLoading(btn, isLoading, labelWhenLoading='Loading...'){
   if (!btn) return;
   if (isLoading) {

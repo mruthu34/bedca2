@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// Keep only one active effect per user (insert or update).
 module.exports.upsertEffect = (data, callback) => {
   const SQLSTATEMENT = `
     INSERT INTO UserEffect (user_id, bonus_damage, multiplier)

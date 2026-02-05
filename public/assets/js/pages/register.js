@@ -5,9 +5,11 @@ import { qs, toast, setLoading } from '../ui.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
+// Match backend rule so users see validation before submit.
 const allowedEmailDomains = ['gmail.com', 'hotmail.com', 'outlook.com'];
 
 mountNavbar('');
@@ -15,6 +17,7 @@ mountNavbar('');
 const form = qs('#registerForm');
 const btn = qs('#btnRegister');
 
+// Handle register submit with client-side validation and loading state.
 form?.addEventListener('submit', (e) => {
   e.preventDefault();
   const username = qs('#username')?.value?.trim();

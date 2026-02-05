@@ -6,8 +6,9 @@
 
     // Import your new route file
     // You would also import your other routes here
-    const mainRoutes = require('./routes/mainRoute.js');
-    require("./configure/initTables");
+const mainRoutes = require('./routes/mainRoute.js');
+// Side-effect: ensure DB tables exist on startup.
+require("./configure/initTables");
 
 
     //////////////////////////////////////////////////////

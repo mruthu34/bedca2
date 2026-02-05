@@ -1,5 +1,6 @@
 const pool = require("../services/db");
 
+// Keep bonus damage consistent with item model calculation.
 const BONUS_RATIO = 1.5;
 
 module.exports.selectByUserId = (data, callback) => {
@@ -24,6 +25,7 @@ module.exports.sumQuantityByUserId = (data, callback) => {
   pool.query(SQLSTATEMENT, VALUES, callback);
 };
 
+// Upsert to avoid separate "exists" queries.
 module.exports.insertOrIncrease = (data, callback) => {
   const SQLSTATEMENT = `
     INSERT INTO Inventory (user_id, item_id, quantity)

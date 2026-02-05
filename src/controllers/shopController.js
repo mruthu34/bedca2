@@ -7,6 +7,7 @@ const { applyDifficultyToItems, getBossDifficultyMultiplier, getBossMinBonus } =
 const INVENTORY_SLOT_PACK = 5;
 const INVENTORY_SLOT_COST = 100;
 
+// Run a list of middleware-like steps in series without nesting callbacks everywhere.
 const runSteps = (steps, req, res, next) => {
   let index = 0;
   const run = (err) => {
@@ -22,6 +23,7 @@ const runSteps = (steps, req, res, next) => {
   };
   run();
 };
+// List shop items with scaling based on current boss difficulty.
 module.exports.listItems = (req, res, next) => {
   bossModel.selectActiveBoss((bossErr, boss) => onListItemsBoss(bossErr, boss, req, res, next));
 };
@@ -31,6 +33,7 @@ const onListItemsBoss = (bossErr, boss, req, res, next) => {
     console.error("Error listItems (boss):", bossErr);
     return next(bossErr);
   }
+  // Scale shop items so later bosses make items stronger/more expensive.
   const multiplier = getBossDifficultyMultiplier(boss);
   const minBonus = getBossMinBonus(boss);
   res.locals.listItems = { multiplier, minBonus };
@@ -47,6 +50,7 @@ const onListItemsItems = (error, results, req, res, next) => {
   return res.status(200).json(scaled);
 };
 
+// Validate incoming purchase request and normalize quantity.
 const validateBuyItem = (req, res, next) => {
   const userId = req.user && req.user.user_id;
   const itemId = req.body.item_id;
@@ -69,6 +73,7 @@ const validateBuyItem = (req, res, next) => {
 
 const loadItem = (req, res, next) => {
   const { itemId, itemName } = res.locals.buyItem;
+  // Allow lookup by id or by name (used by UI).
   const selectItem = itemName ? itemModel.selectByName : itemModel.selectById;
   const selectData = itemName ? { name: itemName } : { item_id: itemId };
 
@@ -83,6 +88,7 @@ const loadItem = (req, res, next) => {
 
     const item = itemRows[0];
     res.locals.buyItem.item = item;
+    // Total cost is per-item cost times quantity.
     res.locals.buyItem.totalCost = item.cost_points * res.locals.buyItem.quantity;
     return next();
   });
@@ -112,6 +118,7 @@ const loadUserAndCheckPoints = (req, res, next) => {
 
 const checkInventoryCapacity = (req, res, next) => {
   const { userId, quantity, user } = res.locals.buyItem;
+  // Default capacity if user doesn't have a stored value.
   const capacity = Number(user.inventory_capacity) || 20;
 
   inventoryModel.sumQuantityByUserId({ user_id: userId }, (errSum, sumRows) => {
@@ -131,6 +138,7 @@ const checkInventoryCapacity = (req, res, next) => {
   });
 };
 
+// Deduct points using a conditional update so balance can't go negative.
 const deductPoints = (req, res, next) => {
   const { userId, totalCost } = res.locals.buyItem;
 
@@ -146,6 +154,7 @@ const deductPoints = (req, res, next) => {
   });
 };
 
+// Insert item into inventory or increase quantity if it already exists.
 const updateInventory = (req, res, next) => {
   const { userId, item, quantity } = res.locals.buyItem;
 
@@ -182,6 +191,7 @@ module.exports.buyItem = (req, res, next) => runSteps([
   sendBuyItemResponse
 ], req, res, next);
 
+// Validate purchase of inventory capacity packs.
 const validateBuyCapacity = (req, res, next) => {
   const userId = req.user && req.user.user_id;
   const quantity = req.body.qty === undefined ? 1 : parseInt(req.body.qty, 10);
@@ -209,6 +219,7 @@ const loadUserForCapacity = (req, res, next) => {
     }
     const user = userRows[0];
     res.locals.buyCapacity.user = user;
+    // Cost scales by number of packs requested.
     res.locals.buyCapacity.totalCost = INVENTORY_SLOT_COST * res.locals.buyCapacity.quantity;
     return next();
   });
@@ -238,6 +249,7 @@ const deductPointsForCapacity = (req, res, next) => {
 
 const increaseCapacity = (req, res, next) => {
   const { userId, quantity } = res.locals.buyCapacity;
+  // Each pack adds a fixed number of slots.
   const slots = quantity * INVENTORY_SLOT_PACK;
   usermodel.increaseInventoryCapacity({ user_id: userId, slots }, (errInc) => {
     if (errInc) {

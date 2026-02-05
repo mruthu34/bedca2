@@ -6,6 +6,7 @@ const userController = require('../controllers/userController');
 
 router.post('/', userController.createNewUser);
 router.get('/', userController.readAllUser);
+// "me" routes require a valid JWT.
 router.get("/me/points", jwtMiddleware.verifyToken, userController.getMyPoints);
 router.get("/me/profile", jwtMiddleware.verifyToken, userController.getMyProfile);
 router.delete("/me", jwtMiddleware.verifyToken, userController.deleteMe);

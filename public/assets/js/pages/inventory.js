@@ -6,6 +6,7 @@ import { addActivity, getActiveEffect, setActiveEffect } from '../storage.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
@@ -27,6 +28,7 @@ function init(){
   refresh();
 }
 
+// Refresh inventory + points + capacity, then update active effect banner.
 function refresh(){
   Promise.allSettled([loadInventory(), loadPoints(), loadCapacity()]).then(() => {
     renderActiveEffect();
@@ -52,6 +54,7 @@ function loadInventory(){
   return api.get('/inventory', { auth: true })
     .then((rows) => {
       inv = rows;
+      // Track used slots for capacity banner.
       invUsed = (inv || []).reduce((sum, row) => sum + (parseInt(row.quantity, 10) || 0), 0);
       renderCapacityBanner();
 
@@ -108,6 +111,7 @@ function renderRow(it){
   `;
 }
 
+// Apply an inventory item effect for the next completion/boss hit.
 function useItem(e){
   const btn = e.currentTarget;
   const item_id = parseInt(btn.dataset.use, 10);
@@ -122,7 +126,7 @@ function useItem(e){
         multiplier: res.multiplier,
         name: item?.name || 'Inventory item'
       }, myUserId);
-      addActivity({ title: 'Item activated', detail: item?.name || `Item #${item_id}`, icon: 'lightning-charge' });
+      addActivity({ title: 'Item activated', detail: item?.name || `Item #${item_id}`, icon: 'lightning-charge' }, getUserIdFromToken());
       refresh();
     })
     .catch((err) => {
@@ -151,6 +155,7 @@ function renderActiveEffect(){
   `;
 }
 
+// Show capacity usage and quick link to buy more slots.
 function renderCapacityBanner(){
   const el = qs('#invCapacityBanner');
   if (!el) return;
@@ -169,6 +174,7 @@ function renderCapacityBanner(){
   `;
 }
 
+// Simple name-based asset mapping for item thumbnails.
 function getItemImage(it){
   const name = String(it.name || '').toLowerCase();
   if (name.includes('shield') || name.includes('guard')) return '/assets/img/items/shield.svg';

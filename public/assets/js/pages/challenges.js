@@ -6,6 +6,7 @@ import { addActivity, clearActiveEffect, getActiveEffect } from '../storage.js';
 
 import { consumeFlash } from '../auth.js';
 
+// Show any one-time message from a redirect (e.g., logout/session expiry).
 const flash = consumeFlash();
 if (flash?.message) toast(flash.message, { kind: flash.kind || 'info' });
 
@@ -17,6 +18,7 @@ const filters = { query: '', ownership: 'all', sort: 'newest' };
 const completionCooldownMs = 60 * 1000;
 let cooldownTimer = null;
 
+// Signal other tabs/pages that boss HP might have changed.
 function notifyBossUpdated(){
   try {
     localStorage.setItem('bossUpdateAt', String(Date.now()));
@@ -53,6 +55,7 @@ function bindUi(){
   qs('#challengeSort')?.addEventListener('change', onFilterChange);
 }
 
+// Load challenge list, then decorate it with per-user review info.
 function refresh(){
   const list = qs('#challengeList');
   if (!list) return Promise.resolve();
@@ -72,6 +75,7 @@ function refresh(){
     });
 }
 
+// Render cards based on filters + ownership state.
 function renderList(){
   const list = qs('#challengeList');
   if (!list) return;
@@ -161,6 +165,7 @@ function onAction(e){
   }
 }
 
+// Open modal for create/edit with prefilled values when editing.
 function openEditModal(challenge){
   editChallengeId = challenge ? challenge.challenge_id : null;
   qs('#modalTitle').textContent = editChallengeId ? `Edit Challenge #${editChallengeId}` : 'Create a Challenge';
@@ -170,6 +175,7 @@ function openEditModal(challenge){
   new bootstrap.Modal(modalEl).show();
 }
 
+// Create or update a challenge, then refresh the list.
 function submitChallenge(e){
   e.preventDefault();
   const btn = qs('#btnSaveChallenge');
@@ -190,10 +196,10 @@ function submitChallenge(e){
     .then(() => {
       if (editChallengeId) {
         toast('Challenge updated.', { kind: 'success', title: 'Saved' });
-        addActivity({ title: 'Challenge updated', detail: `Challenge #${editChallengeId} edited`, icon: 'pencil' });
+        addActivity({ title: 'Challenge updated', detail: `Challenge #${editChallengeId} edited`, icon: 'pencil' }, myUserId);
       } else {
         toast('Challenge created.', { kind: 'success', title: 'Created' });
-        addActivity({ title: 'Challenge created', detail: description.slice(0, 60), icon: 'plus-circle' });
+        addActivity({ title: 'Challenge created', detail: description.slice(0, 60), icon: 'plus-circle' }, myUserId);
       }
       bootstrap.Modal.getInstance(qs('#challengeModal'))?.hide();
       return refresh();
@@ -215,12 +221,15 @@ function openCompleteModal(challenge){
   new bootstrap.Modal(qs('#completeModal')).show();
 }
 
+// Open review modal and check whether user is eligible to review.
 function openReviewsModal(challenge){
   reviewChallengeId = challenge.challenge_id;
   qs('#reviewsTitle').textContent = `Reviews for Challenge #${challenge.challenge_id}`;
   qs('#reviewComment').value = '';
   qs('#reviewRating').value = '5';
+  setReviewFormEnabled(false, 'Checking completion status...');
   loadReviews();
+  checkCanReview(challenge);
   new bootstrap.Modal(qs('#reviewsModal')).show();
 }
 
@@ -271,6 +280,45 @@ function submitReview(e){
     });
 }
 
+// Reviews only allowed after completion.
+function checkCanReview(challenge){
+  const challengeId = challenge.challenge_id;
+  const userId = myUserId;
+  if (!userId) {
+    setReviewFormEnabled(false, 'Sign in to leave a review.');
+    return;
+  }
+
+  api.get(`/challenges/${challengeId}`)
+    .then((attempts) => {
+      const completed = Array.isArray(attempts)
+        && attempts.some(a => String(a.user_id) === String(userId));
+      if (!completed) {
+        setReviewFormEnabled(false, 'You can only review challenges you completed.');
+        toast('You can only review challenges you completed.', { kind: 'warning', title: 'Not completed' });
+        return;
+      }
+      setReviewFormEnabled(true, 'You can only review challenges you completed, and only once.');
+    })
+    .catch(() => {
+      setReviewFormEnabled(false, 'Unable to verify completion status.');
+    });
+}
+
+function setReviewFormEnabled(enabled, helperText){
+  const form = qs('#formReview');
+  const btn = qs('#btnSubmitReview');
+  const helper = form ? form.querySelector('.form-text') : null;
+  if (helperText && helper) helper.textContent = helperText;
+  if (form) {
+    form.querySelectorAll('select, textarea, button[type="submit"]').forEach((el) => {
+      el.disabled = !enabled;
+    });
+  }
+  if (btn) btn.disabled = !enabled;
+}
+
+// Mark whether current user already reviewed each challenge.
 function enrichChallengesWithMyReviews(rows){
   if (!myUserId || !Array.isArray(rows) || rows.length === 0) return Promise.resolve();
   const lookups = rows.map(c =>
@@ -297,6 +345,7 @@ function markChallengeReviewed(challengeId){
     btn.innerHTML = `${icon}Edit Review`;
   }
 }
+// Submit completion, apply boss damage, and start client cooldown timer.
 function submitCompletion(e){
   e.preventDefault();
   const btn = qs('#btnComplete');
@@ -308,7 +357,7 @@ function submitCompletion(e){
     .then(() => {
       toast('Nice! Points added and boss damage applied (if a boss is active).', { kind: 'success', title: 'Completed' });
       if (getActiveEffect(myUserId)) clearActiveEffect(myUserId);
-      addActivity({ title: 'Challenge completed', detail: `Challenge #${challengeId} completed`, icon: 'check2-circle' });
+      addActivity({ title: 'Challenge completed', detail: `Challenge #${challengeId} completed`, icon: 'check2-circle' }, myUserId);
       notifyBossUpdated();
       setCompletionCooldown(challengeId);
       bootstrap.Modal.getInstance(qs('#completeModal'))?.hide();
@@ -322,6 +371,7 @@ function submitCompletion(e){
     });
 }
 
+// Persist client-side cooldown timers per challenge.
 function loadCompletionCooldowns(){
   try {
     const raw = localStorage.getItem('completionCooldowns');
@@ -348,6 +398,7 @@ function setCompletionCooldown(challengeId){
   applyCompletionCooldowns();
 }
 
+// Disable "Complete" buttons while cooldown is active.
 function applyCompletionCooldowns(){
   const map = loadCompletionCooldowns();
   const now = Date.now();
@@ -397,7 +448,7 @@ function deleteChallenge(challenge, btn){
   api.del(`/challenges/${challenge.challenge_id}`, { auth: true })
     .then(() => {
       toast('Challenge deleted.', { kind: 'success', title: 'Deleted' });
-      addActivity({ title: 'Challenge deleted', detail: `Challenge #${challenge.challenge_id} removed`, icon: 'trash' });
+      addActivity({ title: 'Challenge deleted', detail: `Challenge #${challenge.challenge_id} removed`, icon: 'trash' }, myUserId);
       return refresh();
     })
     .catch((err) => {
