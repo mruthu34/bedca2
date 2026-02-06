@@ -1,7 +1,10 @@
+// API base URL and route map for redirects.
 import { API_BASE } from './config.js';
-import { getToken, clearToken } from './storage.js';
-import { setFlash } from './auth.js';
 import { ROUTES } from './config.js';
+// Auth token helpers for attaching/clearing session credentials.
+import { getToken, clearToken } from './storage.js';
+// Flash message helper for auth/session notices.
+import { setFlash } from './auth.js';
 
 // Parse JSON but fall back to raw text for non-JSON error responses.
 function parseJsonSafe(res) {

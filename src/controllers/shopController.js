@@ -67,6 +67,7 @@ const validateBuyItem = (req, res, next) => {
     return res.status(400).json({ message: "Error: quantity must be a positive integer" });
   }
 
+  // Keep computed values in res.locals for later steps.
   res.locals.buyItem = { userId, itemId, itemName, quantity };
   return next();
 };
@@ -127,7 +128,8 @@ const checkInventoryCapacity = (req, res, next) => {
       return next(errSum);
     }
     const current = sumRows?.[0]?.total_quantity ?? 0;
-    if (current + quantity > capacity) {
+  // Prevent purchases that would exceed capacity.
+  if (current + quantity > capacity) {
       return res.status(409).json({
         message: "Inventory full. Buy more inventory in the shop.",
         current,

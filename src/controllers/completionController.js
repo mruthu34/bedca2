@@ -325,6 +325,7 @@ const enforceCompletionCooldown = (req, res, next) => {
   );
 };
 
+// Completion pipeline: validate -> insert -> award points -> boss damage -> cleanup.
 module.exports.createNewCompletionRecord = (req, res, next) => runSteps([
   initCompletionFlow(false),
   loadUserForCompletion,
@@ -533,6 +534,7 @@ const sendHitBossResponse = (req, res) => {
   });
 };
 
+// Direct boss hit pipeline: validate spend -> deduct points -> apply effects -> damage boss.
 module.exports.hitBoss = (req, res, next) => runSteps([
   initHitBoss,
   loadUserForHitBoss,

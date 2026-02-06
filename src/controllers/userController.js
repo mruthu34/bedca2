@@ -305,6 +305,7 @@ module.exports.register = (req, res, next) => {
         }
 };
 
+// Some drivers return multi-statement results as an array; normalize.
 module.exports.deletePlayer = (req, res) => {
     try {
         const data = {

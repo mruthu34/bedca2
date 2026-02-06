@@ -33,6 +33,7 @@ module.exports.useItem = (req, res, next) => {
   // Prevent stacking/queueing multiple item effects.
   // Only allow ONE active effect at a time; user must consume it
   // (via a completion or boss hit) before using another item.
+  // Stash request-scoped data to avoid re-reading req in later steps.
   res.locals.useItem = { userId, itemId };
   userEffectModel.selectByUserId({ user_id: userId }, (errActive, activeRows) =>
     onCheckActiveEffect(errActive, activeRows, req, res, next)
@@ -91,6 +92,7 @@ const onSelectInventoryItem = (errSel, rows, req, res, next) => {
     console.error("Error select inventory item:", errSel);
     return next(errSel);
   }
+  // Guard against using items the user doesn't actually own.
   if (rows.length === 0 || rows[0].quantity <= 0) {
     return res.status(404).json({ message: "Item not in inventory" });
   }

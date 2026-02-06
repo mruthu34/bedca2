@@ -278,6 +278,7 @@ const onCreateCooldown = (errCooldown, cooldownRows, req, res, next) => {
     }
 
     const { user_id } = res.locals.challengeCreate;
+    // After cooldown passes, enforce daily creation limit.
     return challengeModel.countCreatedTodayByUserId({ user_id }, (errCount, countRows) =>
         onCreateDailyLimit(errCount, countRows, req, res, next)
     );
