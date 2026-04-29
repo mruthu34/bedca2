@@ -8,15 +8,28 @@ const {
   scaleBonusDamage
 } = require("../utils/bossDifficulty");
 
+<<<<<<< HEAD
 // Return user inventory with boss difficulty scaling applied to item stats.
+=======
+>>>>>>> ee936ee (latest commit)
 module.exports.getInventory = (req, res, next) => {
   const userId = req.user && req.user.user_id;
   if (userId == undefined) {
     return res.status(401).json({ message: "Error: missing user token" });
   }
 
+<<<<<<< HEAD
   res.locals.inventory = { userId };
   bossModel.selectActiveBoss((bossErr, boss) => onGetInventoryBoss(bossErr, boss, req, res, next));
+=======
+  inventoryModel.selectByUserId({ user_id: userId }, (error, results) => {
+    if (error) {
+      console.error("Error getInventory:", error);
+      return next(error);
+    }
+    return res.status(200).json(results);
+  });
+>>>>>>> ee936ee (latest commit)
 };
 
 module.exports.useItem = (req, res, next) => {
@@ -30,6 +43,7 @@ module.exports.useItem = (req, res, next) => {
     return res.status(400).json({ message: "Error: item_id is required" });
   }
 
+<<<<<<< HEAD
   // Prevent stacking/queueing multiple item effects.
   // Only allow ONE active effect at a time; user must consume it
   // (via a completion or boss hit) before using another item.
@@ -39,6 +53,16 @@ module.exports.useItem = (req, res, next) => {
     onCheckActiveEffect(errActive, activeRows, req, res, next)
   );
 };
+=======
+  inventoryModel.selectByUserAndItem({ user_id: userId, item_id: itemId }, (errSel, rows) => {
+    if (errSel) {
+      console.error("Error select inventory item:", errSel);
+      return next(errSel);
+    }
+    if (rows.length === 0 || rows[0].quantity <= 0) {
+      return res.status(404).json({ message: "Item not in inventory" });
+    }
+>>>>>>> ee936ee (latest commit)
 
 // Fetch current boss to compute difficulty scaling for display.
 const onGetInventoryBoss = (bossErr, boss, req, res, next) => {
@@ -51,6 +75,7 @@ const onGetInventoryBoss = (bossErr, boss, req, res, next) => {
   res.locals.inventory.multiplier = multiplier;
   res.locals.inventory.minBonus = minBonus;
 
+<<<<<<< HEAD
   return inventoryModel.selectByUserId(
     { user_id: res.locals.inventory.userId },
     (error, results) => onGetInventoryItems(error, results, req, res, next)
@@ -77,6 +102,40 @@ const onCheckActiveEffect = (errActive, activeRows, req, res, next) => {
   if (activeRows.length) {
     return res.status(409).json({
       message: "You already have an active item effect. Use it first before applying another."
+=======
+    inventoryModel.decreaseQuantity({ user_id: userId, item_id: itemId }, (errDec, resultDec) => {
+      if (errDec) {
+        console.error("Error decrease inventory:", errDec);
+        return next(errDec);
+      }
+      if (resultDec.affectedRows === 0) {
+        return res.status(404).json({ message: "Item not in inventory" });
+      }
+
+      inventoryModel.deleteIfZero({ user_id: userId, item_id: itemId }, (errDel) => {
+        if (errDel) {
+          console.error("Error cleanup inventory:", errDel);
+          return next(errDel);
+        }
+
+        userEffectModel.upsertEffect(
+          { user_id: userId, bonus_damage: item.bonus_damage, multiplier: item.multiplier },
+          (errEff) => {
+            if (errEff) {
+              console.error("Error set user effect:", errEff);
+              return next(errEff);
+            }
+
+            return res.status(200).json({
+              message: "Item used for next completion",
+              item_id: itemId,
+              bonus_damage: item.bonus_damage,
+              multiplier: item.multiplier
+            });
+          }
+        );
+      });
+>>>>>>> ee936ee (latest commit)
     });
   }
 

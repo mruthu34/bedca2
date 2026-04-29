@@ -1,6 +1,7 @@
 const itemModel = require("../models/itemModel");
 const inventoryModel = require("../models/inventoryModel");
 const usermodel = require("../models/userModel");
+<<<<<<< HEAD
 const bossModel = require("../models/bossModel");
 const { applyDifficultyToItems, getBossDifficultyMultiplier, getBossMinBonus } = require("../utils/bossDifficulty");
 
@@ -19,6 +20,13 @@ const runSteps = (steps, req, res, next) => {
       step(req, res, run);
     } catch (e) {
       return next(e);
+=======
+module.exports.listItems = (req, res, next) => {
+  itemModel.selectAll((error, results) => {
+    if (error) {
+      console.error("Error listItems:", error);
+      return next(error);
+>>>>>>> ee936ee (latest commit)
     }
   };
   run();
@@ -28,6 +36,7 @@ module.exports.listItems = (req, res, next) => {
   bossModel.selectActiveBoss((bossErr, boss) => onListItemsBoss(bossErr, boss, req, res, next));
 };
 
+<<<<<<< HEAD
 const onListItemsBoss = (bossErr, boss, req, res, next) => {
   if (bossErr) {
     console.error("Error listItems (boss):", bossErr);
@@ -51,6 +60,8 @@ const onListItemsItems = (error, results, req, res, next) => {
 };
 
 // Validate incoming purchase request and normalize quantity.
+=======
+>>>>>>> ee936ee (latest commit)
 const validateBuyItem = (req, res, next) => {
   const userId = req.user && req.user.user_id;
   const itemId = req.body.item_id;
@@ -67,14 +78,20 @@ const validateBuyItem = (req, res, next) => {
     return res.status(400).json({ message: "Error: quantity must be a positive integer" });
   }
 
+<<<<<<< HEAD
   // Keep computed values in res.locals for later steps.
+=======
+>>>>>>> ee936ee (latest commit)
   res.locals.buyItem = { userId, itemId, itemName, quantity };
   return next();
 };
 
 const loadItem = (req, res, next) => {
   const { itemId, itemName } = res.locals.buyItem;
+<<<<<<< HEAD
   // Allow lookup by id or by name (used by UI).
+=======
+>>>>>>> ee936ee (latest commit)
   const selectItem = itemName ? itemModel.selectByName : itemModel.selectById;
   const selectData = itemName ? { name: itemName } : { item_id: itemId };
 
@@ -89,7 +106,10 @@ const loadItem = (req, res, next) => {
 
     const item = itemRows[0];
     res.locals.buyItem.item = item;
+<<<<<<< HEAD
     // Total cost is per-item cost times quantity.
+=======
+>>>>>>> ee936ee (latest commit)
     res.locals.buyItem.totalCost = item.cost_points * res.locals.buyItem.quantity;
     return next();
   });
@@ -117,6 +137,7 @@ const loadUserAndCheckPoints = (req, res, next) => {
   });
 };
 
+<<<<<<< HEAD
 const checkInventoryCapacity = (req, res, next) => {
   const { userId, quantity, user } = res.locals.buyItem;
   // Default capacity if user doesn't have a stored value.
@@ -141,6 +162,8 @@ const checkInventoryCapacity = (req, res, next) => {
 };
 
 // Deduct points using a conditional update so balance can't go negative.
+=======
+>>>>>>> ee936ee (latest commit)
 const deductPoints = (req, res, next) => {
   const { userId, totalCost } = res.locals.buyItem;
 
@@ -156,7 +179,10 @@ const deductPoints = (req, res, next) => {
   });
 };
 
+<<<<<<< HEAD
 // Insert item into inventory or increase quantity if it already exists.
+=======
+>>>>>>> ee936ee (latest commit)
 const updateInventory = (req, res, next) => {
   const { userId, item, quantity } = res.locals.buyItem;
 
@@ -183,6 +209,7 @@ const sendBuyItemResponse = (req, res) => {
   });
 };
 
+<<<<<<< HEAD
 module.exports.buyItem = (req, res, next) => runSteps([
   validateBuyItem,
   loadItem,
@@ -284,3 +311,13 @@ module.exports.buyCapacity = (req, res, next) => runSteps([
   increaseCapacity,
   sendCapacityResponse
 ], req, res, next);
+=======
+module.exports.buyItem = [
+  validateBuyItem,
+  loadItem,
+  loadUserAndCheckPoints,
+  deductPoints,
+  updateInventory,
+  sendBuyItemResponse
+];
+>>>>>>> ee936ee (latest commit)
