@@ -4,7 +4,6 @@ const userEffectModel = require("../models/userEffectModel");
 const usermodel = require("../models/userModel");
 const challengeModel = require("../models/challengeModel");
 
-<<<<<<< HEAD
 const BOSS_NAMES = [
   "Stress Dragon",
   "Burnout Titan",
@@ -47,8 +46,6 @@ function pickNextBossName(currentName){
   return BOSS_NAMES[(idx + 1) % BOSS_NAMES.length];
 }
 
-=======
->>>>>>> ee936ee (latest commit)
 module.exports.getUsersByChallengeId = (req, res, next) => {
   const data = {
     challenge_id: req.params.id
@@ -65,10 +62,7 @@ module.exports.getUsersByChallengeId = (req, res, next) => {
 
     const output = results.map((r) => ({
       user_id: r.user_id,
-<<<<<<< HEAD
       user_username: r.user_username,
-=======
->>>>>>> ee936ee (latest commit)
       details: r.details
     }));
     return res.status(200).json(output);
@@ -92,10 +86,7 @@ module.exports.deleteUserCompletions = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // Initialize shared completion data and mark whether this completion should damage the boss.
-=======
->>>>>>> ee936ee (latest commit)
 const initCompletionFlow = (applyBossDamage) => (req, res, next) => {
   const data = {
     challenge_id: req.params.challenge_id ?? req.params.id,
@@ -174,10 +165,7 @@ const addPointsToUser = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // Load any temporary damage effects to apply to boss damage this completion.
-=======
->>>>>>> ee936ee (latest commit)
 const loadUserEffect = (req, res, next) => {
   const { data, challenge } = res.locals.completion;
 
@@ -186,24 +174,17 @@ const loadUserEffect = (req, res, next) => {
       console.error("Error getting user effect:", errEff);
       return next(errEff);
     }
-<<<<<<< HEAD
     // Default effect means "no bonus" to avoid extra branching downstream.
     const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
     res.locals.completion.effectRows = effRows;
     res.locals.completion.effect = effect;
     // Damage scales with challenge points, then adds a flat bonus.
-=======
-    const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
-    res.locals.completion.effectRows = effRows;
-    res.locals.completion.effect = effect;
->>>>>>> ee936ee (latest commit)
     res.locals.completion.damage = (challenge.points * effect.multiplier) + effect.bonus_damage;
     return next();
   });
 };
 
 const loadActiveBossForCompletion = (req, res, next) => {
-<<<<<<< HEAD
   bossModel.selectActiveBoss((errB, boss) => onActiveBossForCompletion(errB, boss, req, res, next));
 };
 
@@ -236,40 +217,12 @@ const onClearEffectAfterNoBoss = (errClear, req, res, next) => {
     return next(errClear);
   }
   return sendCompletionResponse(req, res);
-=======
-  const { data, effectRows } = res.locals.completion;
-
-  bossModel.selectActiveBoss((errB, boss) => {
-    if (errB) {
-      console.error("Error getting boss:", errB);
-      return next(errB);
-    }
-    if (!boss) {
-      if (effectRows.length) {
-        return userEffectModel.clearByUserId({ user_id: data.user_id }, (errClear) => {
-          if (errClear) {
-            console.error("Error clearing user effect:", errClear);
-            return next(errClear);
-          }
-          return sendCompletionResponse(req, res);
-        });
-      }
-      return sendCompletionResponse(req, res);
-    }
-    res.locals.completion.boss = boss;
-    return next();
-  });
->>>>>>> ee936ee (latest commit)
 };
 
 const logBossDamage = (req, res, next) => {
   const { data, boss, completionId, damage } = res.locals.completion;
 
-<<<<<<< HEAD
   bossModel.insertDamageLog(boss.boss_id, data.user_id, completionId, damage, 0, (errL) => {
-=======
-  bossModel.insertDamageLog(boss.boss_id, data.user_id, completionId, damage, (errL) => {
->>>>>>> ee936ee (latest commit)
     if (errL) {
       console.error("Error logging boss damage:", errL);
       return next(errL);
@@ -303,32 +256,16 @@ const deactivateBossIfDead = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // If the boss was just deactivated, spawn the next boss with higher HP.
-=======
->>>>>>> ee936ee (latest commit)
 const spawnBossIfDead = (req, res, next) => {
   const { boss, deactivateResult } = res.locals.completion;
 
   if (deactivateResult.affectedRows !== 1) {
     return next();
   }
-<<<<<<< HEAD
   // Difficulty curve: increase HP by 25% and add a flat 50.
   const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
   const newName = pickNextBossName(boss.name);
-=======
-  const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
-  const bossNames = [
-    "Stress Dragon",
-    "Burnout Titan",
-    "Anxiety Kraken",
-    "Procrastination Phantom",
-    "Deadline Demon",
-    "Caffeine Golem"
-  ];
-  const newName = bossNames[boss.boss_id % bossNames.length];
->>>>>>> ee936ee (latest commit)
 
   return bossModel.spawnBoss(newName, newMaxHp, (errS) => {
     if (errS) {
@@ -364,7 +301,6 @@ const sendCompletionResponse = (req, res) => {
   });
 };
 
-<<<<<<< HEAD
 // Basic per-user, per-challenge cooldown to prevent spam completions.
 const enforceCompletionCooldown = (req, res, next) => {
   const { data } = res.locals.completion;
@@ -391,14 +327,6 @@ const enforceCompletionCooldown = (req, res, next) => {
 
 // Completion pipeline: validate -> insert -> award points -> boss damage -> cleanup.
 module.exports.createNewCompletionRecord = (req, res, next) => runSteps([
-  initCompletionFlow(false),
-  loadUserForCompletion,
-  enforceCompletionCooldown,
-=======
-module.exports.createNewCompletionRecord = [
-  initCompletionFlow(false),
-  loadUserForCompletion,
->>>>>>> ee936ee (latest commit)
   loadChallenge,
   insertCompletion,
   addPointsToUser,
@@ -410,14 +338,9 @@ module.exports.createNewCompletionRecord = [
   spawnBossIfDead,
   clearEffectIfAny,
   sendCompletionResponse
-<<<<<<< HEAD
 ], req, res, next);
 
 // Initialize a "hit boss" request that spends points for damage.
-=======
-];
-
->>>>>>> ee936ee (latest commit)
 const initHitBoss = (req, res, next) => {
   const pointsSpent = req.body && parseInt(req.body.points_spent, 10);
   const userId = req.user && req.user.user_id;
@@ -434,10 +357,7 @@ const initHitBoss = (req, res, next) => {
   return next();
 };
 
-<<<<<<< HEAD
 // Load user and verify they can afford the points spend.
-=======
->>>>>>> ee936ee (latest commit)
 const loadUserForHitBoss = (req, res, next) => {
   const { userId } = res.locals.hitBoss;
 
@@ -458,10 +378,7 @@ const loadUserForHitBoss = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // Deduct points using a conditional update so balance can't go negative.
-=======
->>>>>>> ee936ee (latest commit)
 const deductPointsForHitBoss = (req, res, next) => {
   const { userId, pointsSpent } = res.locals.hitBoss;
 
@@ -477,10 +394,7 @@ const deductPointsForHitBoss = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // Apply any temporary damage effects to the points-spent damage.
-=======
->>>>>>> ee936ee (latest commit)
 const loadEffectForHitBoss = (req, res, next) => {
   const { userId, pointsSpent } = res.locals.hitBoss;
 
@@ -489,24 +403,17 @@ const loadEffectForHitBoss = (req, res, next) => {
       console.error("Error getting user effect:", errEff);
       return next(errEff);
     }
-<<<<<<< HEAD
     // Default effect means "no bonus" to avoid extra branching downstream.
     const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
     res.locals.hitBoss.effectRows = effRows;
     res.locals.hitBoss.effect = effect;
     // Damage scales with points spent, then adds a flat bonus.
-=======
-    const effect = effRows.length ? effRows[0] : { bonus_damage: 0, multiplier: 1.0 };
-    res.locals.hitBoss.effectRows = effRows;
-    res.locals.hitBoss.effect = effect;
->>>>>>> ee936ee (latest commit)
     res.locals.hitBoss.damage = (pointsSpent * effect.multiplier) + effect.bonus_damage;
     return next();
   });
 };
 
 const loadActiveBossForHitBoss = (req, res, next) => {
-<<<<<<< HEAD
   bossModel.selectActiveBoss((errB, boss) => onActiveBossForHitBoss(errB, boss, req, res, next));
 };
 
@@ -545,36 +452,6 @@ const logHitBossDamage = (req, res, next) => {
   const { boss, userId, damage, pointsSpent } = res.locals.hitBoss;
 
   bossModel.insertDamageLog(boss.boss_id, userId, null, damage, pointsSpent, (errL) => {
-=======
-  const { userId, effectRows } = res.locals.hitBoss;
-
-  bossModel.selectActiveBoss((errB, boss) => {
-    if (errB) {
-      console.error("Error getting boss:", errB);
-      return next(errB);
-    }
-    if (!boss) {
-      if (effectRows.length) {
-        return userEffectModel.clearByUserId({ user_id: userId }, (errClear) => {
-          if (errClear) {
-            console.error("Error clearing user effect:", errClear);
-            return next(errClear);
-          }
-          return res.status(404).json({ message: "No active boss found" });
-        });
-      }
-      return res.status(404).json({ message: "No active boss found" });
-    }
-    res.locals.hitBoss.boss = boss;
-    return next();
-  });
-};
-
-const logHitBossDamage = (req, res, next) => {
-  const { boss, userId, damage } = res.locals.hitBoss;
-
-  bossModel.insertDamageLog(boss.boss_id, userId, null, damage, (errL) => {
->>>>>>> ee936ee (latest commit)
     if (errL) {
       console.error("Error logging boss damage:", errL);
       return next(errL);
@@ -608,32 +485,16 @@ const deactivateHitBossIfDead = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // If the boss was just deactivated, spawn the next boss with higher HP.
-=======
->>>>>>> ee936ee (latest commit)
 const spawnBossAfterHitIfDead = (req, res, next) => {
   const { boss, deactivateResult } = res.locals.hitBoss;
 
   if (deactivateResult.affectedRows !== 1) {
     return next();
   }
-<<<<<<< HEAD
   // Difficulty curve: increase HP by 25% and add a flat 50.
   const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
   const newName = pickNextBossName(boss.name);
-=======
-  const newMaxHp = Math.ceil(boss.max_hp * 1.25) + 50;
-  const bossNames = [
-    "Stress Dragon",
-    "Burnout Titan",
-    "Anxiety Kraken",
-    "Procrastination Phantom",
-    "Deadline Demon",
-    "Caffeine Golem"
-  ];
-  const newName = bossNames[boss.boss_id % bossNames.length];
->>>>>>> ee936ee (latest commit)
 
   return bossModel.spawnBoss(newName, newMaxHp, (errS) => {
     if (errS) {
@@ -659,10 +520,7 @@ const clearEffectAfterHitIfAny = (req, res, next) => {
   });
 };
 
-<<<<<<< HEAD
 // Return damage results without exposing the full user object.
-=======
->>>>>>> ee936ee (latest commit)
 const sendHitBossResponse = (req, res) => {
   const { boss, damage, pointsSpent, user } = res.locals.hitBoss;
   return res.status(200).json({
@@ -673,12 +531,8 @@ const sendHitBossResponse = (req, res) => {
   });
 };
 
-<<<<<<< HEAD
 // Direct boss hit pipeline: validate spend -> deduct points -> apply effects -> damage boss.
 module.exports.hitBoss = (req, res, next) => runSteps([
-=======
-module.exports.hitBoss = [
->>>>>>> ee936ee (latest commit)
   initHitBoss,
   loadUserForHitBoss,
   deductPointsForHitBoss,
@@ -690,8 +544,4 @@ module.exports.hitBoss = [
   spawnBossAfterHitIfDead,
   clearEffectAfterHitIfAny,
   sendHitBossResponse
-<<<<<<< HEAD
 ], req, res, next);
-=======
-];
->>>>>>> ee936ee (latest commit)
