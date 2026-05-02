@@ -13,6 +13,39 @@ const jwtMiddleware = require('../middleware/jwtMiddleware');
 const userController = require('../controllers/userController');
 const exampleController = require('../controllers/exampleController');
 
+// Health check endpoint - useful for debugging on Render
+router.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK',
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Database connection test
+router.get('/health/db', (req, res) => {
+  const pool = require('../services/db');
+  
+  pool.getConnection((err, connection) => {
+    if (err) {
+      console.error("Database connection error:", err);
+      return res.status(500).json({ 
+        status: 'ERROR',
+        message: 'Database connection failed',
+        error: err.message
+      });
+    }
+    
+    connection.release();
+    res.status(200).json({ 
+      status: 'OK',
+      message: 'Database connected successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+});
+
 router.use('/users', userRoute);
 router.use('/challenges',challengeRoute)
 router.use("/boss", bossRoute);
